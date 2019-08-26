@@ -452,15 +452,9 @@ class Adapter:
             LOG.debug(token)
             #file_to_upload = content['service']
             file_to_upload = request
-            file_composed = "@" + file_to_upload
             file = {'nsd-create': open(file_to_upload, 'rb')}           
             data = {'service':file_to_upload}
 
-            HEADERS = {
-                'Accept':'application/yaml',
-                'Content-Type':'application/zip', 
-                'Authorization':'Bearer ' +token+''                
-            }
             url = sp_host + ':9999/osm/nsd/v1/ns_descriptors_content'            
             url_2 = url.replace("http","https")
         
@@ -625,8 +619,7 @@ class Adapter:
         for fc in function_with_files:
             LOG.debug (fc)
             tarring = tarring + package_folder + '/' + fc + ' '      
-        LOG.debug (tarring)     
-        LOG.debug(function_with_files)
+        LOG.debug (tarring)
         create_tar = subprocess.check_output([tarring], cwd="/app/packages", shell=True)
         LOG.debug (create_tar)
         return (create_tar)
@@ -1685,7 +1678,7 @@ class Adapter:
                 status = data['config-status']                    
                 LOG.debug(status)
             except:
-                LOG.debug("Retraying in 3 sec")
+                LOG.debug("Retrying in 3 sec")
                 LOG.debug(status)
                 time.sleep(3)
                 status_curl = subprocess.check_output([status_url], shell=True)
@@ -1706,7 +1699,7 @@ class Adapter:
                 status = data['config-status']                    
                 LOG.debug(status)
             except:
-                LOG.debug("Retraying in 3 sec")
+                LOG.debug("Retrying in 3 sec")
                 LOG.debug(status)
                 time.sleep(3)
                 status_curl = subprocess.check_output([status_url], shell=True)
@@ -1956,7 +1949,6 @@ class Adapter:
 
     def monitoringTests(self,monitoring_type):
         LOG.info("monitoring tests starts")
-        JSON_CONTENT_HEADER = {'Accept':'application/json'}   
         my_type =  self.getDBType()
 
         if my_type == 'sonata':
@@ -1976,7 +1968,7 @@ class Adapter:
             url_2 = url.replace("http","https")
             LOG.debug(url_2) 
             monitoring_string = "curl \"" + url + monitoring_type + "&start="  + yesterday_date_2 + "Z&end=" + current_date_2 + "Z&step=15s\""
-            LOG.debug(monitoring_string)
+            LOG.debug("Calling OSM monitoring on {}".format(monitoring_string))
             monitoring_curl = subprocess.check_output([monitoring_string], shell=True)
             LOG.debug(monitoring_curl)
             return monitoring_curl
@@ -2078,7 +2070,6 @@ class Adapter:
         LOG.debug(status_ns_3)
 
         status = subprocess.check_output([status_ns_3], shell=True)
-        status = subprocess.check_output([status_ns_3], shell=True)
         LOG.debug(json.loads(status))
         ns_instance_json = json.loads(status)
         vnfs_array_json = ns_instance_json['constituent-vnfr-ref']
@@ -2090,8 +2081,7 @@ class Adapter:
             url_4 = "curl -s --insecure  -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\"  " + url_3+ "/" + vnf_id
             vnf_instance_curl= subprocess.check_output([url_4], shell=True)
             vnf_instance_json = json.loads(vnf_instance_curl)
-            LOG.debug("This is an VNF instance:")
-            LOG.debug(vnf_instance_json)
+            LOG.debug("This is an VNF instance : {}".format(vnf_instance_json))
 
             vdur_arrays = vnf_instance_json['vdur']            
             for x in vdur_arrays:
@@ -2999,7 +2989,7 @@ class Adapter:
             package_path = None
             vnv_service_id = None
 
-            LOG.debug("instantion for osm SPs stars")
+            LOG.debug("Instantiation for osm SPs starts")
 
             ### package operations
 
@@ -3043,9 +3033,6 @@ class Adapter:
                     download_pkg = self.downloadPackageTGO(package_id)
                     LOG.debug(download_pkg)            
                     download_pkg_json = json.loads(download_pkg)
-                
-                    download_pkg = self.downloadPackageTGO(package_id)
-                    download_pkg_json = json.loads(download_pkg)        
                     package_path_downloaded = download_pkg_json['package'] 
                 except:
                     msg = "{\"error\": \"error getting the service from the VnV Catalog\"}"
@@ -3115,7 +3102,7 @@ class Adapter:
                             package_uploaded = True
                             service_id = self.getUploadedOSMServiceId(upload_service)
                     except:
-                        LOG.debug("problem uploading the service to osm")
+                        LOG.error("problem uploading the service to osm")
                     
                     try:
                         #service_id = self.getUploadedOSMServiceId(upload_service)
@@ -3542,8 +3529,8 @@ class Adapter:
             response = subprocess.check_output([nsds_2], shell=True)
             LOG.debug(response)
         except:
-            service_id = "error"
-            return service_id        
+            LOG.error("Unable to load descriptors list, returning")
+            return "error"
 
         jjson = json.loads(response)
         LOG.debug(jjson)
@@ -3561,7 +3548,7 @@ class Adapter:
                 LOG.debug(x['_id'])
 
                 if ( x['name'] == name and x['vendor'] == vendor and x['version'] == version ):
-                    LOG.debug(x['name'])
+                    LOG.debug("Found a matching descriptor : " + x['name'])
                     service_id = x['_id']
                     exists = 'YES' 
             except:
