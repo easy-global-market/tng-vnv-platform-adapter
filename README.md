@@ -50,9 +50,14 @@ This Software is published under Apache 2.0 license. Please see the LICENSE file
 
 The following lead developers are responsible for this repository and have admin rights. They can, for example, merge pull requests.
 
- * [Luis Hens](https://github.com/luishens01)
+ * [Aureliano Sinatra](https://github.com/sinaure)
+ 
 
 #### Feedback
 
 * You may use the mailing list [sonata-dev@lists.atosresearch.eu](mailto:sonata-dev@lists.atosresearch.eu)
 * [GitHub issues](https://github.com/sonata-nfv/son-sp-infrabstract/issues)
+
+### Unit Tests
+
+ python -m unittest discover -s unit-tests/ -p '*_test.py'

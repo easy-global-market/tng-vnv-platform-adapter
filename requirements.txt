@@ -5,3 +5,4 @@ pyyaml
 flask_cors
 coloredlogs
 validators
+unittest2

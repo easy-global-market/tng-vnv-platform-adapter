@@ -1,2 +1,2 @@
-INSERT INTO service_platforms( "name", host ,  "type" , username , "password" , project_name, vim_account , service_token , monitoring_urls) VALUES    ('STA-SP-AVE2', 'http://172.31.8.108', 'sonata', 'admin', 'admin', 'project_name', 'vim_account', 'service_token',  'http://son-vnv-monitor-manager:8000/a
-pi/v2/services');
+--INSERT INTO service_platforms( "name", host ,  "type" , username , "password" , project_name, vim_account , service_token , monitoring_urls) VALUES    ('STA-SP-AVE2', 'http://172.31.8.108', 'sonata', 'admin', 'admin', 'project_name', 'vim_account', 'service_token',  'http://son-vnv-monitor-manager:8000/a
+--pi/v2/services');

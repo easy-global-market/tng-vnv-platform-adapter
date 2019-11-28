@@ -25,7 +25,7 @@ import os, sys, logging, json, argparse
 from configparser import ConfigParser
 import requests
 import psycopg2
-from authManager import  AuthManager
+from adapters.authManager import  AuthManager
 
 from logger import TangoLogger
 
@@ -43,7 +43,7 @@ class Adapter:
         self.host = "host"
         self.type = "type" 
         logging.getLogger().setLevel(logging.DEBUG)      
-        authManager = AuthManager()  
+        authManager = AuthManager(name)  
 
     def getName(self):
         return self.name

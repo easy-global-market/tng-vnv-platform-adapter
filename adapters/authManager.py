@@ -25,16 +25,20 @@
 # acknowledge the contributions of their colleagues of the 5GTANGO
 # partner consortium (www.5gtango.eu).
 
-import Interface
+from adapters.interface import Interface
 from logger import TangoLogger
-
+import models.database as database
+import logging
+import psycopg2
 
 _LOG = TangoLogger.getLogger('platform:adapter', log_level=logging.DEBUG, log_json=True)
 # _LOG = logging.getLogger('flask.app')
 
 
 class AuthManager(Interface):
-    def __init__(self, execution_host=None):
+    connection = None
+    
+    def __init__(self, name):
         # connect to docker
         Interface.__init__(self)
         db_type = self.__getDBType()
@@ -45,7 +49,8 @@ class AuthManager(Interface):
         db_project = self.__getDBProject()
         db_host = self.__getDBHost()
         mon_url = self.__getMonitoringURLs()
-    
+        sp_name = name
+        
     
     def updateToken(self,token):
         try:
@@ -55,34 +60,35 @@ class AuthManager(Interface):
                                         host = db.host,
                                         port = db.port,
                                         database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            #LOG.debug(self.name)
-            #LOG.info(self.name)
-            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            #LOG.info(get_type)
-            #LOG.debug(get_type)            
-            update_token = "UPDATE service_platforms SET service_token = \'" +token+ "\' WHERE name = \'" +self.name+ "\'"            
-            #LOG.debug(update_token)
-            LOG.info(update_token)
+            cursor = self.connection.cursor()
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            #_LOG.debug(sp_name)
+            #_LOG.info(sp_name)
+            get_type = "SELECT type FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            #_LOG.info(get_type)
+            #_LOG.debug(get_type)            
+            update_token = "UPDATE service_platforms SET service_token = \'" +token+ "\' WHERE name = \'" +sp_name+ "\'"            
+            #_LOG.debug(update_token)
+            __LOG.info(update_token)
             cursor.execute(update_token)
             connection.commit()
             return "token updated", 200    
         except (Exception, psycopg2.Error) as error :
-            LOG.debug(error)
-            LOG.error(error)
+            __LOG.debug(error)
+            __LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    LOG.info("PostgreSQL connection is closed")
+                    _LOG.info("PostgreSQL connection is closed")
 
 
 
     def __getDBType(self):
-        LOG.info("getdbtype starts")
+        _LOG.info("getdbtype starts")
+        
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -91,25 +97,23 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"            
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_type = "SELECT type FROM service_platforms WHERE name=\'" +sp_name+ "\'"            
             cursor.execute(get_type)
             type = cursor.fetchone().__str__() 
-            LOG.info("dbtype : "+type)
+            _LOG.info("dbtype : "+type)
             return type, 200           
             
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed") 
+            if(connection!= None) : 
+                connection.close()
 
     def __getVimAccount(self):
-        LOG.info("getdbtype starts")
+        _LOG.info("getdbtype starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -118,26 +122,26 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT vim_account FROM service_platforms WHERE name=\'" +self.name+ "\'"            
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_type = "SELECT vim_account FROM service_platforms WHERE name=\'" +sp_name+ "\'"            
             cursor.execute(get_type)
             vimaccount = cursor.fetchone().__str__()             
             return vimaccount, 200
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                     
+                    #_LOG.debug("PostgreSQL connection is closed")                     
 
 
 
 
     def __getDBUserName(self):
-        LOG.info("getdbusername starts")
+        _LOG.info("getdbusername starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -146,15 +150,15 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_username = "SELECT username FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_username)
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_username = "SELECT username FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            _LOG.debug(get_username)
             cursor.execute(get_username)
             username = cursor.fetchone().__str__()
-            LOG.debug("username: {}".format(username))              
+            _LOG.debug("username: {}".format(username))              
             return username, 200
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
@@ -162,11 +166,11 @@ class AuthManager(Interface):
                 if(connection):
                     cursor.close()
                     connection.close()
-                    LOG.debug("PostgreSQL connection is closed")
+                    _LOG.debug("PostgreSQL connection is closed")
 
 
     def __getDBProjectName(self):
-        LOG.info("getprojectname starts")
+        _LOG.info("getprojectname starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -175,26 +179,26 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_project_name = "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            #LOG.debug(get_project_name)
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_project_name = "SELECT project_name FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            #_LOG.debug(get_project_name)
             cursor.execute(get_project_name)
             projectname = cursor.fetchone().__str__()
-            LOG.debug("projectname: {}".format(projectname)) 
+            _LOG.debug("projectname: {}".format(projectname)) 
             return projectname, 200
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                    
+                    #_LOG.debug("PostgreSQL connection is closed")                    
 
 
     def __getDBPassword(self):
-        LOG.info("get password starts")
+        _LOG.info("get password starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -203,26 +207,26 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_password= "SELECT password FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_password)
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_password= "SELECT password FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            _LOG.debug(get_password)
             cursor.execute(get_password)
             password = cursor.fetchone().__str__()
-            #LOG.debug("password: {}".format(password)) 
+            #_LOG.debug("password: {}".format(password)) 
             return password, 200
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")      
+                    #_LOG.debug("PostgreSQL connection is closed")      
 
 
     def __getDBProject(self):
-        LOG.info("get project starts")
+        _LOG.info("get project starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -231,29 +235,29 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_password= "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_password)
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_password= "SELECT project_name FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            _LOG.debug(get_password)
             cursor.execute(get_password)
             project = cursor.fetchone().__str__()
-            LOG.debug("project: {}".format(project)) 
+            _LOG.debug("project: {}".format(project)) 
             return project, 200
         except (Exception, psycopg2.Error) as error :
-            #LOG.debug(error)
-            LOG.error(error)
+            #_LOG.debug(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                                    
+                    #_LOG.debug("PostgreSQL connection is closed")                                    
 
 
 
 
     def __getDBHost(self):
-        LOG.info("get dbhost starts")
+        _LOG.info("get dbhost starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -262,24 +266,24 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            query = "SELECT host FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(query)
+            query = "SELECT host FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            _LOG.debug(query)
             cursor.execute(get_host)
             host = cursor.fetchone().__str__()
             return host, 200    
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed") 
+                    #_LOG.debug("PostgreSQL connection is closed") 
 
 
     def __getMonitoringURLs(self):
-        LOG.info("get monitoring urls starts")
+        _LOG.info("get monitoring urls starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -288,19 +292,19 @@ class AuthManager(Interface):
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT monitoring_urls FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_type)
+            #_LOG.debug( connection.get_dsn_parameters(),"\n")
+            get_type = "SELECT monitoring_urls FROM service_platforms WHERE name=\'" +sp_name+ "\'"
+            _LOG.debug(get_type)
             cursor.execute(get_type)
             mon_url = cursor.fetchone().__str__()
             return mon_url, 200 
         except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
+            _LOG.error(error)
             exception_message = str(error)
             return exception_message, 401
         finally:
                 if(connection):
                     cursor.close()
                     connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                     
+                    #_LOG.debug("PostgreSQL connection is closed")                     
 
