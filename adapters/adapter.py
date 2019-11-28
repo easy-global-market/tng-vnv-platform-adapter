@@ -25,6 +25,7 @@ import os, sys, logging, json, argparse
 from configparser import ConfigParser
 import requests
 import psycopg2
+from authManager import  AuthManager
 
 from logger import TangoLogger
 
@@ -41,7 +42,8 @@ class Adapter:
         self.name = name
         self.host = "host"
         self.type = "type" 
-        logging.getLogger().setLevel(logging.DEBUG)        
+        logging.getLogger().setLevel(logging.DEBUG)      
+        authManager = AuthManager()  
 
     def getName(self):
         return self.name
@@ -59,299 +61,14 @@ class Adapter:
         self.type = newType        
 
 
-    def updateToken(self,token):
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            #LOG.debug(self.name)
-            #LOG.info(self.name)
-            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            #LOG.info(get_type)
-            #LOG.debug(get_type)            
-            update_token = "UPDATE service_platforms SET service_token = \'" +token+ "\' WHERE name = \'" +self.name+ "\'"            
-            #LOG.debug(update_token)
-            LOG.info(update_token)
-            cursor.execute(update_token)
-            connection.commit()
-            return "token updated", 200    
-        except (Exception, psycopg2.Error) as error :
-            LOG.debug(error)
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    LOG.info("PostgreSQL connection is closed")
-
-
-
-    def getDBType(self):
-        LOG.info("getdbtype starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"            
-            cursor.execute(get_type)
-            type = cursor.fetchone().__str__() 
-            LOG.info("dbtype : "+type)
-            return type           
-            
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed") 
-
-    def getVimAccount(self):
-        LOG.info("getdbtype starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT vim_account FROM service_platforms WHERE name=\'" +self.name+ "\'"            
-            cursor.execute(get_type)
-            vimaccount = cursor.fetchone().__str__()             
-            return vimaccount
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                     
-
-
-
-
-    def getDBUserName(self):
-        LOG.info("getdbusername starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_username = "SELECT username FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_username)
-            cursor.execute(get_username)
-            all = cursor.fetchall()
-            type_0 = all.__str__()
-            LOG.debug(type_0)
-            type_1 = type_0[3:]            
-            LOG.debug(type_1)            
-            type_2 = type_1[:-4]            
-            LOG.debug(type_2)                  
-            return type_2
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-            #closing database connection.
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    LOG.debug("PostgreSQL connection is closed")
-
-
-    def getDBProjectName(self):
-        LOG.info("getprojectname starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_project_name = "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            #LOG.debug(get_project_name)
-            cursor.execute(get_project_name)
-            all = cursor.fetchall()
-            type_0 = all.__str__()
-            #LOG.debug(type_0)
-            type_1 = type_0[3:]            
-            #LOG.debug(type_1)            
-            type_2 = type_1[:-4]            
-            #LOG.debug(type_2)                  
-            return type_2
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                    
-
-
-    def getDBPassword(self):
-        LOG.info("get password starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_password= "SELECT password FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_password)
-            cursor.execute(get_password)
-            all = cursor.fetchall()
-            type_0 = all.__str__()
-            #LOG.debug(type_0)
-            type_1 = type_0[3:]            
-            #LOG.debug(type_1)            
-            type_2 = type_1[:-4]            
-            #LOG.debug(type_2)                  
-            return type_2
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")      
-
-
-    def getDBProject(self):
-        LOG.info("get project starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_password= "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_password)
-            cursor.execute(get_password)
-            all = cursor.fetchall()
-            type_0 = all.__str__()
-            #LOG.debug(type_0)
-            type_1 = type_0[3:]            
-            #LOG.debug(type_1)            
-            type_2 = type_1[:-4]            
-            #LOG.debug(type_2)                  
-            return type_2
-        except (Exception, psycopg2.Error) as error :
-            #LOG.debug(error)
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                                    
-
-
-
-
-    def getDBHost(self):
-        LOG.info("get dbhost starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            #LOG.debug(self.name)
-            get_host = "SELECT host FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_host)
-            cursor.execute(get_host)
-            host = cursor.fetchone()
-            return host, 200    
-        except (Exception, psycopg2.Error) as error :
-            #LOG.debug(error)
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed") 
-
-
-    def getMonitoringURLs(self):
-        LOG.info("get monitoring urls starts")
-        try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            get_type = "SELECT monitoring_urls FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(get_type)
-            cursor.execute(get_type)
-            all = cursor.fetchall()
-            type_0 = all.__str__()
-            #LOG.debug(type_0)
-            type_1 = type_0[3:]            
-            #LOG.debug(type_1)            
-            type_2 = type_1[:-4]            
-            #LOG.debug(type_2)                  
-            return type_2
-        except (Exception, psycopg2.Error) as error :
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    #LOG.debug("PostgreSQL connection is closed")                     
-
+    
 
     def getPackages(self):    
         LOG.info("get packages starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':               
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             LOG.info(sp_host_2)
 
             url = sp_host_2 + ':32002/api/v3/packages'
@@ -371,10 +88,10 @@ class Adapter:
         LOG.info("get package starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'} 
 
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':    
 
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
 
             url = sp_host_2 + ':32002/api/v3/packages'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
@@ -390,9 +107,9 @@ class Adapter:
         LOG.info("delete package starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
 
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':    
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/packages'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
             response_json = response.content
@@ -421,9 +138,9 @@ class Adapter:
         LOG.info("get package id starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'} 
         
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':              
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/packages'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
             response_json = response.content
@@ -445,10 +162,10 @@ class Adapter:
     def uploadPackage(self,package):
         LOG.info("upload package starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':               
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/packages'
             LOG.info("package info:")
             LOG.info(package)
@@ -460,7 +177,7 @@ class Adapter:
             return upload.text
 
         if my_type == 'onap':               
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + '/sdc/v1/catalog/services/{uuid}/resourceInstances/{resourceInstanceNormalizedName}/artifacts'            
             LOG.debug(package)
             LOG.debug(url)
@@ -471,9 +188,9 @@ class Adapter:
 
     def uploadOSMService(self,request):  
         LOG.info("upload osm service starts")
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'osm':               
-            sp_host = self.getHostIp()
+            sp_host = authManager.db_host
             token = self.getOSMToken(request)
             LOG.debug(token)
             #file_to_upload = content['service']
@@ -678,7 +395,7 @@ class Adapter:
         
         tar_file_path = '/app/packages/test.tar.gz'
 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         token = self.getOSMToken(function_file_path)
         LOG.debug(token)
         
@@ -729,7 +446,7 @@ class Adapter:
             LOG.debug (function_tar_file)
             tar_file_path = package_path + '/files/' + function_tar_file
             LOG.debug (tar_file_path)
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             token = self.getOSMToken(function_file_path)
             LOG.debug(token)        
             url = sp_host_2 + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
@@ -745,7 +462,7 @@ class Adapter:
         except:
             LOG.debug("there is not tar file")
             LOG.debug("Function path: {}".format(function_file_path))             
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             token = self.getOSMToken(function_file_path)
             LOG.debug(token)        
             url = sp_host_2 + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
@@ -773,9 +490,9 @@ class Adapter:
         LOG.info("upload osm function starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
         #LOG.debug(request)
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'osm':               
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]
             token = self.getOSMToken(request)
             LOG.debug(token)
@@ -805,10 +522,10 @@ class Adapter:
     def getServices(self):    
         LOG.info("get services starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()        
+        my_type =  authManager.db_type        
         #LOG.debug(my_type)
         if my_type == 'sonata':                        
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/services'
             LOG.debug(url)
             response = requests.get(url, headers=JSON_CONTENT_HEADER)    
@@ -817,7 +534,7 @@ class Adapter:
                     return (response.text, response.status_code, response.headers.items()) 
 
         if my_type == 'osm':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]
             token = self.getOSMToken(request)
             LOG.debug(token)
@@ -835,10 +552,10 @@ class Adapter:
     def getFunctions(self):    
         LOG.info("get functions starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/functions'
             response = requests.get(url, headers=JSON_CONTENT_HEADER)    
             if response.ok:        
@@ -846,7 +563,7 @@ class Adapter:
                     return (response.text, response.status_code, response.headers.items()) 
 
         if my_type == 'osm':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]
             token = self.getOSMToken(request)
             LOG.debug(token)
@@ -865,9 +582,9 @@ class Adapter:
         LOG.info("get service starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
 
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/services'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
             response_json = response.content
@@ -882,9 +599,9 @@ class Adapter:
 
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
 
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
             response_json = response.content
@@ -912,9 +629,9 @@ class Adapter:
     def getServiceId(self,name,vendor,version):    
         LOG.info("get service id in the SP starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/services'  
             #LOG.debug(name,vendor,version)
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
@@ -939,9 +656,9 @@ class Adapter:
     def getPackageId(self,name,vendor,version):    
         LOG.info("get package id starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/packages'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
             response_json = response.content
@@ -964,9 +681,9 @@ class Adapter:
     def getPackageFile(self,pkg_id):    
         LOG.info("get package file starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':                
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/packages'  
             url_2 = url + "/" + pkg_id + "/package-file --output temp-file.tgo"
             LOG.debug(url_2)          
@@ -980,11 +697,11 @@ class Adapter:
     def instantiationStatus(self,request):    
         LOG.info("instantiation status starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         error = "error"
 
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
 
             url = sp_host_2 + ':32002/api/v3/requests/' +  request            
             time.sleep(2)
@@ -1002,7 +719,7 @@ class Adapter:
                 return error
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp() 
+            sp_host_2 = authManager.db_host 
             token = self.getOSMToken(request)
             LOG.debug(token)
             ns_id = request
@@ -1022,10 +739,10 @@ class Adapter:
     def instantiationsStatus(self):    
         LOG.info("instantatiations status starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'  
             LOG.debug(url)            
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
@@ -1037,7 +754,7 @@ class Adapter:
             else:
                 LOG.debug("response ko")
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]  
             url = sp_host_3                        
             token = self.getOSMToken(request)
@@ -1058,12 +775,12 @@ class Adapter:
         request_str = request.__str__()
         LOG.debug(request_str)
         JSON_CONTENT_HEADER = {'content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'onap':
             '''
             LOG.debug('this SP is ONAP')
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             LOG.debug("sp2 es: ")
             LOG.debug(sp_host_2)
             url = sp_host_2 + '}/serviceInstances/v4'
@@ -1078,7 +795,7 @@ class Adapter:
                 return instantiate.text 
             '''           
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'
             LOG.debug(url)
             try:         
@@ -1094,7 +811,7 @@ class Adapter:
 
         if my_type == 'osm':
             #LOG.debug('this SP is a OSM')  
-            sp_host = self.getHostIp()
+            sp_host = authManager.db_host
             #content = request.get_json()
             LOG.debug("REQUEST")
             LOG.debug(request)
@@ -1107,7 +824,7 @@ class Adapter:
             url = sp_host + ':9999/osm/nslcm/v1/ns_instances_content'
             url_2 = url.replace("http","https")
             LOG.debug("ns_instances_content endpoint : "+url_2)
-            vim_account = self.getVimAccount()
+            vim_account = authManager.vim_account
             vim_id = self.getVimId(vim_account)
             LOG.debug("vim_id : "+vim_id)
             LOG.debug("nsd_name : "+content['nsd_name'])
@@ -1149,10 +866,10 @@ class Adapter:
     def instantiationDelete(self,request):    
         LOG.info("instantiation delete starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'onap':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2
             content = request.get_json()
             ns_instance_id = content['ns_instance_id']
@@ -1165,7 +882,7 @@ class Adapter:
                 return terminate.text
 
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'
             LOG.debug(url)
             LOG.debug(request)            
@@ -1234,7 +951,7 @@ class Adapter:
             return terminate
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             LOG.debug(request)
             LOG.debug(url)
             token = self.getOSMToken(request)
@@ -1279,7 +996,7 @@ class Adapter:
     def SonataTerminateStatus(self,ns_id):
         LOG.debug("SonataTerminateStatus begins")
         JSON_CONTENT_HEADER = {'Accept':'application/json'} 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/records/services/' + ns_id
         LOG.debug(url)        
         service_record = requests.get(url,headers=JSON_CONTENT_HEADER) 
@@ -1293,7 +1010,7 @@ class Adapter:
     def SonataTerminateDescriptorReference(self,ns_id):
         LOG.debug("SonataTerminateDescriptorReference begins")
         JSON_CONTENT_HEADER = {'Accept':'application/json'} 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/records/services/' + ns_id
         LOG.debug(url)        
         service_record = requests.get(url,headers=JSON_CONTENT_HEADER) 
@@ -1307,7 +1024,7 @@ class Adapter:
     def SonataTerminateDescriptorName(self,descriptor_reference_id):
         LOG.debug("SonataTerminateDescriptorName begins")
         JSON_CONTENT_HEADER = {'Accept':'application/json'} 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/services/' + descriptor_reference_id
         LOG.debug(url)        
         service_descriptor= requests.get(url,headers=JSON_CONTENT_HEADER) 
@@ -1320,7 +1037,7 @@ class Adapter:
     def SonataTerminateDescriptorVendor(self,descriptor_reference_id):
         LOG.debug("SonataTerminateDescriptorVendor begins")
         JSON_CONTENT_HEADER = {'Accept':'application/json'} 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/services/' + descriptor_reference_id
         LOG.debug(url)        
         service_descriptor= requests.get(url,headers=JSON_CONTENT_HEADER) 
@@ -1333,7 +1050,7 @@ class Adapter:
     def SonataTerminateDescriptorVersion(self,descriptor_reference_id):
         LOG.debug("SonataTerminateDescriptorVersion begins")
         JSON_CONTENT_HEADER = {'Accept':'application/json'} 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/services/' + descriptor_reference_id
         LOG.debug(url)        
         service_descriptor= requests.get(url,headers=JSON_CONTENT_HEADER) 
@@ -1346,7 +1063,7 @@ class Adapter:
 
     def deleteOSMDescriptors(self,instance_id):
         LOG.debug("deleteOSMDescriptors begins")
-        sp_host = self.getHostIp()
+        sp_host = authManager.db_host
         LOG.debug(sp_host)
         token = self.getOSMToken(request)
         LOG.debug(token)        
@@ -1411,14 +1128,14 @@ class Adapter:
     def getOSMToken(self,request):        
         LOG.info("get osm token starts")      
         JSON_CONTENT_HEADER = {'Accept':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'osm':
-            sp_host = self.getHostIp()
+            sp_host = authManager.db_host
             url = sp_host + ':9999/osm/admin/v1/tokens'
             url2 = url.replace("http","https")
             LOG.debug(url2)
-            pr_name = self.getDBProjectName()
+            pr_name = authManager.db_project_name
             LOG.debug("project name from DB:")
             LOG.debug(pr_name)
             if pr_name:
@@ -1430,8 +1147,8 @@ class Adapter:
                 LOG.debug(pr_name)
 
             LOG.debug(project_id_for_token)
-            username_for_token = self.getDBUserName()
-            password_for_token = self.getDBPassword()
+            username_for_token = authManager.db_username
+            password_for_token = authManager.db_password
 
             data_for_token= "{username: \'" +username_for_token+ "\', password: \'" +password_for_token+ "\', project_id: \'" +project_id_for_token+ "\'}"
             LOG.debug(data_for_token)
@@ -1449,9 +1166,9 @@ class Adapter:
     def getWims(self):    
         LOG.info("get wims starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':
-            url = self.getHostIp()  
+            url = authManager.db_host  
             LOG.debug(url)
             curl_vims = 'curl -s ' + url + ':32002/api/v3/settings/wims'
             LOG.debug(curl_vims)
@@ -1462,10 +1179,10 @@ class Adapter:
     def getVims(self):    
         LOG.info("get vims starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
-            url = self.getHostIp()  
+            url = authManager.db_host  
             LOG.debug(url)
             curl_vims = 'curl -s ' + url + ':32002/api/v3/settings/vims'
             LOG.debug(curl_vims)
@@ -1474,7 +1191,7 @@ class Adapter:
             return vims
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()                   
+            sp_host_2 = authManager.db_host                   
             token = self.getOSMToken(request)
             LOG.debug(token)
             url = sp_host_2 + ':9999/osm/admin/v1/vim_accounts'
@@ -1492,9 +1209,9 @@ class Adapter:
     def getWim(self,vim):    
         LOG.info("get wim starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':
-            url = self.getHostIp()  
+            url = authManager.db_host  
             LOG.debug(url)
             curl_vim = 'curl -s ' + url + ':32002/api/v3/settings/wims/' + vim
             LOG.debug(curl_vim)
@@ -1505,10 +1222,10 @@ class Adapter:
     def getVim(self,vim):    
         LOG.info("get vim starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
-            url = self.getHostIp()  
+            url = authManager.db_host  
             LOG.debug(url)
             curl_vim = 'curl -s ' + url + ':32002/api/v3/settings/vims/' + vim
             LOG.debug(curl_vim)
@@ -1517,7 +1234,7 @@ class Adapter:
             return vim
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             token = self.getOSMToken(request)
             LOG.debug(token)
             url = sp_host_2 + ':9999/osm/admin/v1/vim_accounts'
@@ -1535,19 +1252,19 @@ class Adapter:
 
     def getVimId(self,vim):    
         LOG.info("get vim id starts")
-        username_for_token = self.getDBUserName()
-        password_for_token = self.getDBPassword()
+        username_for_token = authManager.db_username
+        password_for_token = authManager.db_password
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'  
             LOG.debug(url)
             return url
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             get_vim = "osm --user "+username_for_token+" --password \""+password_for_token+"\" --hostname " + sp_host_2 + " vim-show " + vim
             LOG.debug(get_vim)
             vim_info = subprocess.check_output([get_vim], shell=True)
@@ -1565,10 +1282,10 @@ class Adapter:
     def getOSMNsdId(self,nsd_name):    
         LOG.info("get osm nsd id starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]  
             url = sp_host_3                       
             get_nsd = "osm --hostname " + sp_host_3 + "  nsd-show " + nsd_name
@@ -1589,7 +1306,7 @@ class Adapter:
     def downloadPackageSonata(self,package_id):
         LOG.info("download package sonata starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}                              
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/packages'        
         url2 = 'curl -s ' + url + '/' + package_id + '/package-file --output /app/packages/' + package_id + '.tgo'        
         LOG.debug(url2)
@@ -1600,7 +1317,7 @@ class Adapter:
 
     def deleteOSMService(self,id_to_delete):
             LOG.info("delete osm service starts")
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             token = self.getOSMTokenForDelete()
             LOG.debug(token)
             url = sp_host_2 + ':9999/osm/nsd/v1/ns_descriptors_content'
@@ -1614,7 +1331,7 @@ class Adapter:
 
     def deleteOSMFunction(self,id_to_delete):
             LOG.info("delete osm function starts")
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]
             url = sp_host_3
             token = self.getOSMTokenForDelete()
@@ -1631,17 +1348,17 @@ class Adapter:
     def getOSMTokenForDelete(self):            
         LOG.info("get osm token for delete starts")
         JSON_CONTENT_HEADER = {'Accept':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             LOG.debug("sp2 es: ")
             LOG.debug(sp_host_2)
             url = sp_host_2 + ':9999/osm/admin/v1/tokens'
             url_2 = url.replace("http","https")
             LOG.debug(url_2)
             LOG.debug(url_2)
-            pr_name = self.getDBProjectName()
+            pr_name = authManager.db_project_name
             LOG.debug("project name from DB:")
             LOG.debug(pr_name)
 
@@ -1649,13 +1366,13 @@ class Adapter:
                 project_id_for_token = pr_name
 
             if not pr_name:
-                project_id_for_token = self.getDBProject()
+                project_id_for_token = authManager.db_project
                 LOG.debug("project name from json body:")
                 LOG.debug(pr_name)
 
             #LOG.debug(project_id_for_token)
-            username_for_token = self.getDBUserName()
-            password_for_token = self.getDBPassword()            
+            username_for_token = authManager.db_username
+            password_for_token = authManager.db_password            
             admin_data = "{username: 'admin', password: 'admin', project_id: 'admin'}"
             LOG.debug(admin_data)           
             data_for_token= "{username: \'" +username_for_token+ "\', password: \'" +password_for_token+ "\', project_id: \'" +project_id_for_token+ "\'}"
@@ -1669,7 +1386,7 @@ class Adapter:
 
     def getOSMInstaceStatus(self,service_id): 
             LOG.info("get osm instance status starts")            
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             token = self.getOSMToken(service_id)
             LOG.debug(token)                 
             url = sp_host_2 + ':9999/osm/nslcm/v1/ns_instances/' + service_id
@@ -1685,7 +1402,7 @@ class Adapter:
     def OSMInstantiateCallback(self, callback_url,inst_resp_yaml):
 
         token = self.getOSMToken(request)
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':9999/osm/nslcm/v1/ns_instances_content'
         url_2 = url.replace("http","https")        
 
@@ -1760,7 +1477,7 @@ class Adapter:
             LOG.debug(call)
 
 
-            callback_url_monitoring = self.getMonitoringURLs()
+            callback_url_monitoring = authManager.mon_url
             callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url_monitoring            
             LOG.debug(callback_post_monitoring)
             call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
@@ -1778,7 +1495,7 @@ class Adapter:
             LOG.debug(call)
 
 
-            callback_url_monitoring = self.getMonitoringURLs()
+            callback_url_monitoring = authManager.mon_url
             callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url_monitoring            
             LOG.debug(callback_post_monitoring)
             call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
@@ -1798,7 +1515,7 @@ class Adapter:
 
             #Monitoring callback       
             callback_msg = self.instantiationInfoMonitoring(service_id)
-            callback_url_monitoring = self.getMonitoringURLs()
+            callback_url_monitoring = authManager.mon_url
             callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url_monitoring
             LOG.debug(callback_post_monitoring)
             call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
@@ -1821,7 +1538,7 @@ class Adapter:
 
         #Monitoring callback       
         callback_msg = self.instantiationInfoMonitoring(service_id)
-        callback_url_monitoring = self.getMonitoringURLs()
+        callback_url_monitoring = authManager.mon_url
         callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url_monitoring
         LOG.debug(callback_post_monitoring)
         call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
@@ -1983,7 +1700,7 @@ class Adapter:
     def monitoringTests(self,monitoring_type):
         LOG.info("monitoring tests starts")
         JSON_CONTENT_HEADER = {'Accept':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
             LOG.debug('this SP is a Sonata')
@@ -1997,7 +1714,7 @@ class Adapter:
             yesterday_date = subprocess.check_output([yesterday_string], shell=True)
             yesterday_date_1 = yesterday_date.__str__()
             yesterday_date_2 = yesterday_date_1.__str__()[2:25]
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':9091/api/v1/query_range?query=osm_'
             url_2 = url.replace("http","https")
             LOG.debug(url_2) 
@@ -2010,12 +1727,12 @@ class Adapter:
     def getSonataToken(self,request):            
         LOG.info("get sonata token starts")
         JSON_CONTENT_HEADER = {'Content-type':'application/json'}   
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':4567/login'
         url_2 = url.replace("http","https")
         LOG.debug(url_2)
-        username_for_token = self.getDBUserName()
-        password_for_token = self.getDBPassword()        
+        username_for_token = authManager.db_usernameDBUserName()
+        password_for_token = authManager.db_password        
         data_for_token= "{\"username\": \"" +username_for_token+ "\", \"password\": \"" +password_for_token+ "\"}"
         LOG.debug(data_for_token)   
         get_token = "curl -i -X POST -H Content-type: application/json -d '" + data_for_token + "' " + url 
@@ -2035,12 +1752,12 @@ class Adapter:
     def getONAPToken(self,request):            
         LOG.info("get onap token starts")
         JSON_CONTENT_HEADER = {'Content-type':'application/json'}   
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':4567/login'
         url_2 = url.replace("http","https")
         LOG.debug(url_2)
-        username_for_token = self.getDBUserName()
-        password_for_token = self.getDBPassword()        
+        username_for_token = authManager.db_username
+        password_for_token = authManager.db_password        
         data_for_token= "{\"username\": \"" +username_for_token+ "\", \"password\": \"" +password_for_token+ "\"}"
         LOG.debug(data_for_token)   
         get_token = "curl -i -X POST -H Content-type: application/json -d '" + data_for_token + "' " + url 
@@ -2086,7 +1803,7 @@ class Adapter:
 
     def osmInstantiationIPs(self,request):    
         LOG.info("osm instantiation ips starts")
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         sp_host_3 = sp_host_2[7:]           
         url = sp_host_3
         token = self.getOSMToken(request)
@@ -2155,7 +1872,7 @@ class Adapter:
     def getSonataSPPackages(self):    
         LOG.info("get sonata sp packages starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}
-        host  = self.getHostIp()
+        host  = authManager.db_host
         url =  'http://' + host + ':32002/api/v3/packages'
         response = requests.get(url, headers=JSON_CONTENT_HEADER)    
         if response.ok:        
@@ -2183,17 +1900,10 @@ class Adapter:
             return msg  
     
 
-    def getHostIp(self):
-        LOG.info("get host ip starts")
-        sp_host = self.getDBHost().__str__()
-        LOG.debug("getHostIp: {}".format(sp_host))
-        return sp_host
-
-
     def instantiationInfoMonitoringTest(self,id):    
         LOG.info("instantiation info monitoring starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
             instance_request = self.instantiationStatus(id) 
@@ -2202,7 +1912,7 @@ class Adapter:
             instance_uuid = instance_request_json['instance_uuid']
             LOG.info(instance_uuid)
 
-            url = self.getHostIp()
+            url = authManager.db_host
             LOG.info(url)
 
             response = "{\"ns_instance_uuid\": \"" + instance_uuid + "\",\"functions\":["
@@ -2288,7 +1998,7 @@ class Adapter:
     def instantiationInfoMonitoring(self,id):    
         LOG.info("instantiation info monitoring starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
             instance_request = self.instantiationStatus(id) 
@@ -2297,7 +2007,7 @@ class Adapter:
             instance_uuid = instance_request_json['instance_uuid']
             LOG.debug(instance_uuid)
 
-            url = self.getHostIp()
+            url = authManager.db_host
             LOG.debug(url)
 
             response = "{\"ns_instance_uuid\": \"" + instance_uuid + "\",\"functions\":["
@@ -2467,7 +2177,7 @@ class Adapter:
         ports = None
         fip = None
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         sp_ip = self.getSPIp()   
         LOG.info ("sp ip: "+ sp_ip)
@@ -2488,7 +2198,7 @@ class Adapter:
                 msg = "{\"error\": \"error in the request, check the SP\"}"
                 return msg
 
-            url = self.getHostIp()
+            url = authManager.db_host
             LOG.debug(url)
 
             response = "{\"ns_instance_uuid\": \"" + instance_uuid + "\","                
@@ -2702,7 +2412,7 @@ class Adapter:
             return response
 
     def functionRecordOSM(self, vnfr_id):
-        url = self.getHostIp()
+        url = authManager.db_host
         token = self.getOSMToken(vnfr_id)
         LOG.debug(token)
         url = url + ':9999/osm/nslcm/v1/vnf_instances'
@@ -2717,7 +2427,7 @@ class Adapter:
         return (vnfr)  
 
     def functionDescriptorOSM(self, vnfd_id):
-        url = self.getHostIp()
+        url = authManager.db_host
         token = self.getOSMToken(vnfd_id)
         LOG.debug(token)
         url = url + ':9999/osm/vnfpkgm/v1/vnf_packages'        
@@ -2830,7 +2540,7 @@ class Adapter:
         LOG.info("uploadPackageStatusstarts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         url = sp_host_2 + ':32002/api/v3/packages/status/' + process_uuid            
         LOG.info(process_uuid)
         LOG.info(url)           
@@ -2863,7 +2573,7 @@ class Adapter:
         upload_pkg = None
         package_uploaded = False
 
-        my_type =  self.getDBType()      
+        my_type =  authManager.db_type      
         if my_type == 'sonata':
             '''
             try:
@@ -3160,7 +2870,7 @@ class Adapter:
             nsd_name = service_id
 
             ns_name = content['instance_name']
-            vim_account = self.getVimAccount()
+            vim_account = authManager.vim_account
 
             LOG.debug(nsd_name)
             LOG.debug(ns_name)
@@ -3200,7 +2910,7 @@ class Adapter:
 
     def get_request(self, request_uuid):
         LOG.debug("Getting request: {}".format(request_uuid))
-        response = requests.get("{}/api/v3/requests/{}".format(self.getHostIp(), request_uuid), verify=False)
+        response = requests.get("{}/api/v3/requests/{}".format(authManager.db_host, request_uuid), verify=False)
         LOG.debug("Request: {}".format(response.json()))
         return response.json()
 
@@ -3243,7 +2953,7 @@ class Adapter:
             call = subprocess.check_output([callback_post], shell=True)
             LOG.debug(call)	
 
-            monitoring_callback = self.getMonitoringURLs()
+            monitoring_callback = authManager.mon_url
             info_monitoring =self.instantiationInfoMonitoring(instantiation_request_id)	
             LOG.debug(info_monitoring) 
             info_monitoring_str = info_monitoring.__str__()
@@ -3255,8 +2965,8 @@ class Adapter:
             instance_uuid = instantiation_request_json.get("instance_uuid")
             LOG.debug("Instance uuid: {}".format(instance_uuid))
             if content.get('policy_id') and instance_uuid:
-                LOG.debug("Get_Host_IP: {}".format(self.getHostIp()))
-                response = requests.get("{}/api/v3/policies/activate/{}/{}".format(self.getHostIp(), instance_uuid, content['policy_id']), verify=False)
+                LOG.debug("Get_Host_IP: {}".format(authManager.db_host))
+                response = requests.get("{}/api/v3/policies/activate/{}/{}".format(authManager.db_host, instance_uuid, content['policy_id']), verify=False)
                 LOG.debug("Policy activation result code: {} with text: {}".format(response.status_code, response.text ))
 
 
@@ -3303,9 +3013,9 @@ class Adapter:
     def getSonataRequest(self,id):    
         LOG.info("instantiation status starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
 
         url = sp_host_2 + ':32002/api/v3/requests/' +  id            
         time.sleep(2)
@@ -3329,7 +3039,7 @@ class Adapter:
         version = content['service_version']
         policy_id = content.get('policy_id')
         callback = content['callback']
-        my_type =  self.getDBType()  
+        my_type =  authManager.db_type  
         package_uploaded = False
 
         service_id = None   
@@ -3505,7 +3215,7 @@ class Adapter:
             nsd_name = service_id
 
             ns_name = content['instance_name']
-            vim_account = self.getVimAccount()
+            vim_account = authManager.vim_account
 
             LOG.debug(nsd_name)
             LOG.debug(ns_name)
@@ -3552,7 +3262,7 @@ class Adapter:
         LOG.info("get OSM service id starts")
         service_id = None 
         exists = 'NO'   
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         token = self.getOSMToken(request)
         LOG.debug(token)        
         url = sp_host_2 + ':9999/osm/nsd/v1/ns_descriptors_content'
@@ -3775,7 +3485,7 @@ class Adapter:
         LOG.info("get vnv service id starts")
         uuid = None
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':          
             url = 'http://tng-cat:4011/api/catalogues/v2/network-services'  
             response = requests.get(url,headers=JSON_CONTENT_HEADER)
@@ -3854,10 +3564,10 @@ class Adapter:
         LOG.info("delete package from service starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
         response = None        
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
         if my_type == 'sonata':    
             try:
-                sp_host_2 = self.getHostIp()
+                sp_host_2 = authManager.db_host
                 service_id = self.getServiceId(name,vendor,version)
                 package_id = self.getSPPackageIdfromServiceId(service_id)            
                 url = sp_host_2 + ':32002/api/v3/packages/' + package_id   
@@ -3878,7 +3588,7 @@ class Adapter:
         LOG.info("get OSM get vim info starts")
         service_id = None 
         exists = 'NO'   
-        sp_host_2 = self.getHostIp()
+        sp_host_2 = authManager.db_host
         token = self.getOSMToken(request)
         LOG.debug(token)  
         url = sp_host_2.replace("http","https")      
@@ -3905,10 +3615,10 @@ class Adapter:
     def instantiationDeleteTest(self,request):    
         LOG.info("instantiation delete TESTS starts")
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        my_type =  self.getDBType()
+        my_type =  authManager.db_type
 
         if my_type == 'sonata':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             url = sp_host_2 + ':32002/api/v3/requests'
             LOG.debug(url)
             LOG.debug(request)            
@@ -3935,7 +3645,7 @@ class Adapter:
             ns_id = content['instance_uuid']
             LOG.debug(ns_id)
             '''
-            url_monitoring = self.getMonitoringURLs()
+            url_monitoring = authManager.mon_url
             terminate_string = "curl -s -X DELETE -H \"Content-type: application/json\" "  + url_monitoring + "/" + ns_id 
             LOG.debug(terminate_string)   
             try: 
@@ -3975,7 +3685,7 @@ class Adapter:
             return terminate
 
         if my_type == 'osm':
-            sp_host_2 = self.getHostIp()
+            sp_host_2 = authManager.db_host
             sp_host_3 = sp_host_2[7:]
             url = sp_host_3
             LOG.debug(request)
@@ -4053,7 +3763,7 @@ class Adapter:
         upload_pkg = None
         package_uploaded = False
 
-        my_type =  self.getDBType()      
+        my_type =  authManager.db_type      
         if my_type == 'sonata':
             ###### commented for try test ffor when the service already exists in the SP
             try:
@@ -4278,7 +3988,7 @@ class Adapter:
             nsd_name = service_id
 
             ns_name = content['instance_name']
-            vim_account = self.getVimAccount()
+            vim_account = authManager.vim_account
 
             LOG.debug(nsd_name)
             LOG.debug(ns_name)
@@ -4356,7 +4066,7 @@ class Adapter:
             call = subprocess.check_output([callback_post], shell=True)
             LOG.debug(call)	
 
-            monitoring_callback = self.getMonitoringURLs()
+            monitoring_callback = authManager.mon_url
             info_monitoring =self.instantiationInfoMonitoring(instantiation_request_id)	
             LOG.debug(info_monitoring) 
             info_monitoring_str = info_monitoring.__str__()
@@ -4397,8 +4107,8 @@ class Adapter:
     def uploadPackageOnap (self,pkg_path):
         LOG.info("upload onap package starts")
                       
-        sp_host_2 = self.getHostIp()
-        user_id = self.getDBUserName()
+        sp_host_2 = authManager.db_host
+        user_id = authManager.db_username
 
         url = sp_host_2 + '8443:/sdc1/feProxy/onboarding-api/v1.0/vendor-software-products//versions//orchestration-template-candidate'                       
         upload_pkg = "curl -s -X POST --insecure -H \"Accept: application/json\" -H \"Content-Type: application/x-www-form-urlencoded\" -H \"X-FromAppId: robot-ete\" -H \"X-TransactionId: robot-ete-ba84612d-c1c6-4c53-9967-7b1dff276c7a\" -H \"cache-control: no-cache\" -H \"content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW\" "
@@ -4465,8 +4175,8 @@ class Adapter:
         LOG.info("get onap instance object starts")
         uuid = None
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        sp_host_2 = self.getHostIp()
-        customer_name = self.getDBUserName()
+        sp_host_2 = authManager.db_host
+        customer_name = authManager.db_username
 
         url = sp_host_2 + ':8443/nbi/api/v3/service/'    
         url = url + instance_id + '/'
@@ -4480,8 +4190,8 @@ class Adapter:
 
     def instantiateONAP(self,externalId, service_instance_name, auto_service_id):
         
-        sp_host_2 = self.getHostIp()
-        customer_name = self.getDBUserName()
+        sp_host_2 = authManager.db_host
+        customer_name = authManager.db_username
         url = sp_host_2 + '/serviceOrder'
         JSON_CONTENT_HEADER = {'Content-Type':'application/json', 'Accept':'application/json'} 
 
@@ -4520,8 +4230,8 @@ class Adapter:
 
     def terminateONAP(self,externalId, service_instance_name, auto_service_id):
         
-        sp_host_2 = self.getHostIp()
-        customer_name = self.getDBUserName()
+        sp_host_2 = authManager.db_host
+        customer_name = authManager.db_username
         url = sp_host_2 + '/serviceOrder'
         JSON_CONTENT_HEADER = {'Content-Type':'application/json', 'Accept':'application/json'} 
 
@@ -4561,7 +4271,7 @@ class Adapter:
 
     def getSPIp(self):        
         LOG.info("get sp ip starts")
-        sp_host = self.getHostIp() 
+        sp_host = authManager.db_host 
         sp_host_2 = sp_host[7:]  
             
         ping_string = "getent ahostsv4 " + sp_host_2 + " | awk '{print $1}' | head -1"
