@@ -12,6 +12,7 @@ import models.database as database
 class Utils:
 
     def createTableUsers(self,file):
+        connection = None
         try:
             db = database.Database(file)
             connection = psycopg2.connect(user = db.user,
@@ -53,6 +54,7 @@ class Utils:
                     print("PostgreSQL connection is closed")
 
     def createTableServicePlatforms(self,file):
+        connection = None
         try:
             db = database.Database(file)
             connection = psycopg2.connect(user = db.user,
