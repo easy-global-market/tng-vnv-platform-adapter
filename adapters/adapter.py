@@ -1324,15 +1324,15 @@ class Adapter:
             callback_msg = "{\"error\": \"Error instantiating, check the logs\"}"
 
             callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url                
-            LOG.debug(callback_post)
+            LOG.debug("callback_post: {}".format(callback_post)) 
             call = subprocess.check_output([callback_post], shell=True)
-            LOG.debug(call)
+            LOG.debug("call: {}".format(call)) 
 
 
             callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + self.authmanager.mon_url            
-            LOG.debug(callback_post_monitoring)
+            LOG.debug("callback_post_monitoring: {}".format(callback_post_monitoring)) 
             call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-            LOG.debug(call_monitoring)
+            LOG.debug("call_monitoring: {}".format(call_monitoring)) 
 
         if operational_status == 'error':
             
@@ -1361,16 +1361,16 @@ class Adapter:
             LOG.debug("callback_msg: {}".format(callback_msg)) 
 
             callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url
-            LOG.debug(callback_post)
+            LOG.debug("callback_post: {}".format(callback_post)) 
             call = subprocess.check_output([callback_post], shell=True)
-            LOG.debug(call)
+            LOG.debug("call: {}".format(call)) 
 
             #Monitoring callback       
             callback_msg = self.instantiationInfoMonitoring(service_id)
             callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + self.authmanager.mon_url
-            LOG.debug(callback_post_monitoring)
+            LOG.debug("callback_post_monitoring: {}".format(callback_post_monitoring)) 
             call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-            LOG.debug(call_monitoring)
+            LOG.debug("call_monitoring: {}".format(call_monitoring))
         
         LOG.debug("callback ends")            
 
@@ -1400,12 +1400,11 @@ class Adapter:
     def OSMTerminateStatus(self,url_2,ns_id):
         LOG.info("osm terminate status starts")        
         service_id = ns_id
-        LOG.debug(service_id)
         token = self.getOSMToken(ns_id)
         status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug(status_url)
+        LOG.debug("status_url: {}".format(status_url))
         status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug(status_curl)
+        LOG.debug("status_curl: {}".format(status_curl))
         with open('/app/temp.file') as f:
             data = json.load(f)
 
@@ -1422,10 +1421,9 @@ class Adapter:
                     is_active = 'not'
                     status = 'my_status'
                     LOG.debug("Retraying in 3 sec")
-                    LOG.debug(status)
                     time.sleep(3)
                     status_curl = subprocess.check_output([status_url], shell=True)
-                    LOG.debug(status_curl)
+                    LOG.debug("status_curl: {}".format(status_curl))
                     with open('/app/temp.file') as f:
                         data = json.load(f)
 
@@ -1434,13 +1432,11 @@ class Adapter:
 
     def OSMTerminateCallback(self,token,url_2,callback_url,ns_id):
         LOG.info("osm terminate callback starts")
-        LOG.debug("callback start")
         service_id = ns_id
-        LOG.debug(service_id)
         status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug(status_url)
+        LOG.debug("status_url: {}".format(status_url))
         status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug(status_curl)
+        LOG.debug("status_curl: {}".format(status_url))
         with open('/app/temp.file') as f:
             data = json.load(f)
 
@@ -1457,30 +1453,28 @@ class Adapter:
                     is_active = 'not'
                     status = 'my_status'
                     LOG.debug("Retraying in 3 sec")
-                    LOG.debug(status)
                     time.sleep(3)
                     status_curl = subprocess.check_output([status_url], shell=True)
-                    LOG.debug(status_curl)
+                    LOG.debug("status_curl: {}".format(status_url))
                     with open('/app/temp.file') as f:
                         data = json.load(f)
                                          
-        LOG.debug(status)
+        LOG.debug("status: {}".format(status))
         callback_msg='{\"Message\":\"The service ' + service_id + ' was terminated\"}'
-        LOG.debug(callback_msg)
+        LOG.debug("callback_msg: {}".format(callback_msg))
         callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
         call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug(call)
+        LOG.debug("call: {}".format(call))
         LOG.debug("callback end")        
 
     def OSMUploadFunctionCallback(self,token,url_2,callback_url,inst_resp_yaml):
         LOG.info("osm upload function callback starts")                        
         response = yaml.load(inst_resp_yaml)
         service_id = response['id']
-        LOG.debug(service_id)
         status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug(status_url)
+        LOG.debug("status_url: {}".format(status_url))
         status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug(status_curl)
+        LOG.debug("status_curl: {}".format(status_curl))
 
         with open('/app/temp.file') as f:
             data = json.load(f)
@@ -1500,27 +1494,24 @@ class Adapter:
                 LOG.debug(status_curl)
                 with open('/app/temp.file') as f:
                     data = json.load(f)
-                    LOG.debug("data content:")
-                    LOG.debug(data)
+                    LOG.debug("data: {}".format(data))
      
-        LOG.debug(status)
         callback_msg='{\"Message\":\"The function descriptor ' + service_id + ' is in status: ' + status + '\"}'
-        LOG.debug(callback_msg)       
+        LOG.debug("callback_msg: {}".format(callback_msg))
         callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        LOG.debug(callback_post)
+        LOG.debug("callback_post: {}".format(callback_post))
         call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug(call)
+        LOG.debug("call: {}".format(call))
         LOG.debug("callback end")        
 
     def OSMUploadServiceCallback(self,token,url_2,callback_url,inst_resp_yaml):
         LOG.info("osm upload service callback starts")                      
         response = yaml.load(inst_resp_yaml)
         service_id = response['id']
-        LOG.debug(service_id)
         status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug(status_url)
+        LOG.debug("status_url: {}".format(status_url))
         status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug(status_curl)
+        LOG.debug("status_curl: {}".format(status_curl))
         with open('/app/temp.file') as f:
             data = json.load(f)
         LOG.debug(data)
@@ -1530,22 +1521,22 @@ class Adapter:
             status = data['_admin']['onboardingState']
             if status != 'ONBOARDED':
                 LOG.debug("Retrying in 3 sec")
-                LOG.debug(status)
                 time.sleep(3)
                 status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-                LOG.debug(status_url)            
+                LOG.debug("status_url: {}".format(status_url))          
                 status_curl = subprocess.check_output([status_url], shell=True)
-                LOG.debug(status_curl)
+                LOG.debug("status_curl: {}".format(status_curl)) 
                 with open('/app/temp.file') as f:
                     data = json.load(f)
                     LOG.debug(data)     
-        LOG.debug(status)
+        
+        LOG.debug("status: {}".format(status)) 
         callback_msg='{\"Message\":\"The function descriptor ' + service_id + ' is in status: ' + status + '\"}'
-        LOG.debug(callback_msg)
+        LOG.debug("callback_msg: {}".format(callback_msg)) 
         callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        LOG.debug(callback_post)
+        LOG.debug("callback_post: {}".format(callback_post)) 
         call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug(call)
+        LOG.debug("call: {}".format(call)) 
         LOG.debug("callback end")     
 
     def monitoringTests(self,monitoring_type):
