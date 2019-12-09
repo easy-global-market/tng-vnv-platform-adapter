@@ -30,9 +30,8 @@ from osmclient import client as osmclient
 from osmclient.common.exceptions import ClientException
 
 from logger import TangoLogger
-from adapters.uploader import Uploader
 
-LOG = TangoLogger.getLogger("adapter", log_level=logging.DEBUG, log_json=True)
+LOG = TangoLogger.getLogger("authmanager", log_level=logging.DEBUG, log_json=True)
 
 LOG.setLevel(logging.DEBUG)
 #LOG.info("Hello world.")

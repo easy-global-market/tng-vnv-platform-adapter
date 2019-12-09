@@ -517,14 +517,12 @@ def monitoring(service_platform):
 @app.route('/adapters/instantiate_service', methods=['POST'])
 def adapter_instatiate_service():
     LOG.info("start /adapters/instantiate_service")
-    LOG.info("request : {}".format(request.get_json()) )
-    LOG.debug(request.is_json)
     content = request.get_json()
-    LOG.debug("Request: {}".format(content))
+    LOG.info("adapter_instatiate_service_request : {}".format(content) )
     sp = content['service_platform']
     ad = adapter.Adapter(sp) 
-    LOG.debug("AdapterStoredVars: {}".format(json.dumps(ad.__dict__)))
-    LOG.debug(content) 
+    LOG.debug("AuthManagerStoredVars: {}".format(ad.authmanager.__dict__))
+    LOG.debug("UploaderStoredVars: {}".format(ad.uploader.__dict__)) 
     return ad.instantiateService(request)  
    
 @app.route('/adapters/instantiate_service/tests', methods=['POST'])
