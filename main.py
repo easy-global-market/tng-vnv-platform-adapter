@@ -522,7 +522,6 @@ def adapter_instatiate_service():
     sp = content['service_platform']
     ad = adapter.Adapter(sp) 
     LOG.debug("AuthManagerStoredVars: {}".format(ad.authmanager.__dict__))
-    LOG.debug("UploaderStoredVars: {}".format(ad.uploader.__dict__)) 
     return ad.instantiateService(request)  
    
 @app.route('/adapters/instantiate_service/tests', methods=['POST'])

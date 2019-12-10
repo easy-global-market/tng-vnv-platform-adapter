@@ -26,15 +26,11 @@ from configparser import ConfigParser
 import requests
 import psycopg2
 
-from osmclient import client as osmclient
-from osmclient.common.exceptions import ClientException
-
 from logger import TangoLogger
 
 LOG = TangoLogger.getLogger("authmanager", log_level=logging.DEBUG, log_json=True)
 
 LOG.setLevel(logging.DEBUG)
-#LOG.info("Hello world.")
 
 FILE = "db-config.cfg"
 
@@ -56,7 +52,7 @@ class AuthManager:
         self.mon_url = self.__getMonitoringURLs()
     
     def __getDBType(self):
-        LOG.info("getdbtype starts")
+        LOG.debug("getdbtype starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -69,7 +65,6 @@ class AuthManager:
             query = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"            
             cursor.execute(query)
             type = cursor.fetchone()[0] 
-            LOG.debug("dbtype: {}".format(type))
             return type           
             
         except (Exception, psycopg2.Error) as error :
@@ -83,7 +78,7 @@ class AuthManager:
                     #LOG.debug("PostgreSQL connection is closed") 
 
     def __getVimAccount(self):
-        LOG.info("getdbtype starts")
+        LOG.debug("getdbtype starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -112,7 +107,7 @@ class AuthManager:
 
 
     def __getDBUserName(self):
-        LOG.info("getdbusername starts")
+        LOG.debug("getdbusername starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -125,7 +120,6 @@ class AuthManager:
             query = "SELECT username FROM service_platforms WHERE name=\'" +self.name+ "\'"
             cursor.execute(query)
             username = cursor.fetchone()[0]
-            LOG.debug("username: {}".format(username)) 
             return username
         except (Exception, psycopg2.Error) as error :
             LOG.error(error)
@@ -140,7 +134,7 @@ class AuthManager:
 
 
     def __getDBProjectName(self):
-        LOG.info("getprojectname starts")
+        LOG.debug("getprojectname starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -149,11 +143,9 @@ class AuthManager:
                                         port = db.port,
                                         database = db.database)  
             cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
             query = "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
             cursor.execute(query)
             project_name = cursor.fetchone()[0]
-            LOG.debug("project_name: {}".format(project_name))
             return project_name
         except (Exception, psycopg2.Error) as error :
             LOG.error(error)
@@ -167,7 +159,7 @@ class AuthManager:
 
 
     def __getDBPassword(self):
-        LOG.info("get password starts")
+        LOG.debug("get password starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -178,7 +170,6 @@ class AuthManager:
             cursor = connection.cursor()
             #LOG.debug( connection.get_dsn_parameters(),"\n")
             query= "SELECT password FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            LOG.debug(query)
             cursor.execute(query)
             password = cursor.fetchone()[0]
             return password
@@ -194,7 +185,7 @@ class AuthManager:
 
 
     def __getDBProject(self):
-        LOG.info("get project starts")
+        LOG.debug("get project starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -207,7 +198,6 @@ class AuthManager:
             query= "SELECT project_name FROM service_platforms WHERE name=\'" +self.name+ "\'"
             cursor.execute(query)
             project_name = cursor.fetchone()[0]
-            LOG.debug("project_name: {}".format(project_name))
             return project_name
         except (Exception, psycopg2.Error) as error :
             #LOG.debug(error)
@@ -224,7 +214,7 @@ class AuthManager:
 
 
     def __getDBHost(self):
-        LOG.info("get dbhost starts")
+        LOG.debug("get dbhost starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -238,7 +228,6 @@ class AuthManager:
             query = "SELECT host FROM service_platforms WHERE name=\'" +self.name+ "\'"
             cursor.execute(query)
             host = cursor.fetchone()[0]
-            LOG.debug("host: {}".format(host))
             return host    
         except (Exception, psycopg2.Error) as error :
             #LOG.debug(error)
@@ -253,7 +242,7 @@ class AuthManager:
 
 
     def __getMonitoringURLs(self):
-        LOG.info("get monitoring urls starts")
+        LOG.debug("get monitoring urls starts")
         try:
             db = database.Database(FILE)
             connection = psycopg2.connect(user = db.user,
@@ -266,7 +255,6 @@ class AuthManager:
             query = "SELECT monitoring_urls FROM service_platforms WHERE name=\'" +self.name+ "\'"
             cursor.execute(query)
             monitoring_urls = cursor.fetchone()[0]
-            LOG.debug("monitoring_urls: {}".format(monitoring_urls))
             return monitoring_urls
         except (Exception, psycopg2.Error) as error :
             LOG.error(error)

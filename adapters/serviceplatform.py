@@ -28,12 +28,37 @@ class ServicePlatform:
         self.monitoring_urls = monitoring_urls
 
 
-
-
-
-
-
-
+    def updateToken(self,token):
+        try:
+            db = database.Database(FILE)
+            connection = psycopg2.connect(user = db.user,
+                                        password = db.password,
+                                        host = db.host,
+                                        port = db.port,
+                                        database = db.database)  
+            cursor = connection.cursor()
+            #LOG.debug( connection.get_dsn_parameters(),"\n")
+            #LOG.debug(self.name)
+            #LOG.info(self.name)
+            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"
+            #LOG.info(get_type)
+            #LOG.debug(get_type)            
+            update_token = "UPDATE service_platforms SET service_token = \'" +token+ "\' WHERE name = \'" +self.name+ "\'"            
+            #LOG.debug(update_token)
+            LOG.info(update_token)
+            cursor.execute(update_token)
+            connection.commit()
+            return "token updated", 200    
+        except (Exception, psycopg2.Error) as error :
+            LOG.debug(error)
+            LOG.error(error)
+            exception_message = str(error)
+            return exception_message, 401
+        finally:
+                if(connection):
+                    cursor.close()
+                    connection.close()
+                    LOG.info("PostgreSQL connection is closed")    
 
 
     def registerServicePlatform(self):

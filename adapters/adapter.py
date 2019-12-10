@@ -26,12 +26,10 @@ from configparser import ConfigParser
 import requests
 import psycopg2
 
-from osmclient import client as osmclient
-from osmclient.common.exceptions import ClientException
-
 from logger import TangoLogger
-from adapters.uploader import Uploader
 from adapters.authmanager import AuthManager
+from adapters.osmmanager import OsmManager
+from adapters.onapmanager import OnapManager
 
 LOG = TangoLogger.getLogger("adapter", log_level=logging.DEBUG, log_json=True)
 
@@ -52,61 +50,152 @@ class Adapter:
         
         LOG.info("AdapterConstructor starts calls to db")
         self.authmanager = AuthManager(name)
-        self.uploader = Uploader(self.authmanager.db_type,self.authmanager.db_host)
+        self.osmmanager = OsmManager(self.authmanager)
+        self.onapmanager = OnapManager(self.authmanager)
          
 
-    def getName(self):
-        return self.name
-    def setName(self, newName):
-        self.name = newName        
+    #######################OSM
+    def getOSMServiceId(self,name,vendor,version):
+        return self.osmmanager.getOSMServiceId(name,vendor,version)
+    
+    def deleteOSMService(self,id_to_delete):
+        return self.osmmanager.deleteOSMService(id_to_delete)
+    
+    def deleteOSMFunction(self,id_to_delete):
+        return self.osmmanager.deleteOSMFunction(id_to_delete) 
+    
+    def getOSMTokenForDelete(self):
+        return self.osmmanager.getOSMTokenForDelete() 
+    
+    def getOSMInstaceStatus(self,service_id):
+        return self.osmmanager.getOSMInstaceStatus(service_id) 
+    
+    def OSMInstantiateCallback(self,callback_url,inst_resp_yaml):
+        return self.osmmanager.OSMInstantiateCallback(callback_url,inst_resp_yaml) 
 
-    def getHost(self):
-        return self.host
-    def setHost(self, newHost):
-        self.host = newHost
+    def OSMTerminateStatus(self,url_2,ns_id):
+        return self.osmmanager.OSMTerminateStatus(url_2,ns_id) 
+    
+    def __getOSMToken(self,request):
+        return self.osmmanager.getOSMToken(request)
+    
+    #######################ONAP
+    #UNUSED
+    def getVnVONAPServiceId(self,name,vendor,version):    
+        return self.onapmanager.getVnVONAPServiceId(name,vendor,version)   
+    
+    def getSPONAPServiceId(self,name,vendor,version):        
+        return self.onapmanager.getSPONAPServiceId(name,vendor,version) 
 
-    def getType(self):
-        return self.type
-    def setType(self, newType):
-        self.type = newType        
+    def getONAPInstance(self,instance_id,service_name):        
+        return self.onapmanager.getONAPInstance(instance_id,service_name)        
 
+    def instantiateONAP(self,externalId, service_instance_name, auto_service_id):
+        return self.onapmanager.instantiateONAP(externalId, service_instance_name, auto_service_id)       
 
-    def updateToken(self,token):
+    def terminateONAP(self,externalId, service_instance_name, auto_service_id):
+        return self.onapmanager.terminateONAP(externalId, service_instance_name, auto_service_id)  
+    
+    
+    def uploadPackage(self,package):
+        LOG.info("upload package starts")
+        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
+
+        if self.authmanager.db_type == 'sonata':               
+            url = self.authmanager.db_host + ':32002/api/v3/packages'
+            
+            files = {'package': open(package,'rb')}
+            upload = requests.post(url, files=files)
+            LOG.debug("upload: {}".format(upload.text))
+            return upload.text
+
+        if self.authmanager.db_type == 'onap':               
+            url = self.authmanager.db_host + '/sdc/v1/catalog/services/{uuid}/resourceInstances/{resourceInstanceNormalizedName}/artifacts'            
+            files = {'package': open(package,'rb')}
+            upload = requests.post(url, files=files)
+            if request.method == 'POST':
+                return upload.text
+
+    def uploadOSMService(self,request):  
+        LOG.info("upload osm service starts")
+        if self.authmanager.db_type == 'osm':               
+            token = self.__getOSMToken(request)
+            #file_to_upload = content['service']
+            file_to_upload = request
+            file_composed = "@" + file_to_upload
+            file = {'nsd-create': open(file_to_upload, 'rb')}           
+            data = {'service':file_to_upload}
+
+            HEADERS = {
+                'Accept':'application/yaml',
+                'Content-Type':'application/zip', 
+                'Authorization':'Bearer ' +token+''                
+            }
+            url = self.authmanager.db_host + ':9999/osm/nsd/v1/ns_descriptors_content'            
+            url_2 = url.replace("http","https")
+        
+            upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/yaml\"  -H \"Accept: application/yaml\" -H \"Authorization: Bearer "
+            upload_nsd_2 = upload_nsd +token + "\" "
+            upload_nsd_3 = upload_nsd_2 + " --data-binary "
+            upload_nsd_4 = upload_nsd_3 + "\"@" +file_to_upload+ "\" " + url_2
+
+            LOG.debug("upload: {}".format(upload_nsd_4))
+            upload = subprocess.check_output([upload_nsd_4], shell=True)
+            try:
+                callback_url = content['callback']
+                LOG.debug("Callback url specified")
+                _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
+            except:
+                LOG.debug("No callback url specified")
+
+            LOG.debug("resp_upload: {}".format(upload))
+            return (upload)  
+    
+    def uploadPackageStatus(self,process_uuid):
+
+        status = None
+        LOG.info("uploadPackageStatusstarts")
+        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
+
+        url = self.authmanager.db_host + ':32002/api/v3/packages/status/' + process_uuid            
+        LOG.info(process_uuid)
+        LOG.info(url)           
         try:
-            db = database.Database(FILE)
-            connection = psycopg2.connect(user = db.user,
-                                        password = db.password,
-                                        host = db.host,
-                                        port = db.port,
-                                        database = db.database)  
-            cursor = connection.cursor()
-            #LOG.debug( connection.get_dsn_parameters(),"\n")
-            #LOG.debug(self.name)
-            #LOG.info(self.name)
-            get_type = "SELECT type FROM service_platforms WHERE name=\'" +self.name+ "\'"
-            #LOG.info(get_type)
-            #LOG.debug(get_type)            
-            update_token = "UPDATE service_platforms SET service_token = \'" +token+ "\' WHERE name = \'" +self.name+ "\'"            
-            #LOG.debug(update_token)
-            LOG.info(update_token)
-            cursor.execute(update_token)
-            connection.commit()
-            return "token updated", 200    
-        except (Exception, psycopg2.Error) as error :
-            LOG.debug(error)
-            LOG.error(error)
-            exception_message = str(error)
-            return exception_message, 401
-        finally:
-                if(connection):
-                    cursor.close()
-                    connection.close()
-                    LOG.info("PostgreSQL connection is closed")
-
-
-
+            upload_status_curl = requests.get(url, headers=JSON_CONTENT_HEADER) 
+            LOG.debug(upload_status_curl)
+            LOG.debug(upload_status_curl.text)
+            upload_status_curl_json = json.loads(upload_status_curl.text)        
+            LOG.debug(upload_status_curl_json)
+            status = upload_status_curl_json['package_process_status']
+            return status
+        except:
+            msg = "{\"error\": \"error checking the status of the uploaded package\"}"
+            return msg       
+        
+    def uploadPackageOnap (self,pkg_path):
+        LOG.info("upload onap package starts")
                       
+        user_id = self.authmanagerdb_username
 
+        url = self.authmanagerdb_host + '8443:/sdc1/feProxy/onboarding-api/v1.0/vendor-software-products//versions//orchestration-template-candidate'                       
+        upload_pkg = "curl -s -X POST --insecure -H \"Accept: application/json\" -H \"Content-Type: application/x-www-form-urlencoded\" -H \"X-FromAppId: robot-ete\" -H \"X-TransactionId: robot-ete-ba84612d-c1c6-4c53-9967-7b1dff276c7a\" -H \"cache-control: no-cache\" -H \"content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW\" "
+        upload_pkg_2 = upload_pkg + "-H \"USER_ID: \"" + user_id + " "
+        upload_pkg_3 = upload_pkg_2 + " -F upload=@" + pkg_path
+        
+        LOG.debug(upload_pkg_3)
+        upload = subprocess.check_output([upload_pkg_3], shell=True)
+
+        '''
+        try:
+            callback_url = content['callback']
+            LOG.debug("Callback url specified")
+            _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
+        except:
+            LOG.debug("No callback url specified")
+        '''
+
+        LOG.debug(upload)
+        return (upload)    
 
     def getPackages(self):    
         LOG.info("get packages starts")
@@ -361,7 +450,7 @@ class Adapter:
         
         tar_file_path = '/app/packages/test.tar.gz'
 
-        token = self.getOSMToken(function_file_path)
+        token = self.__getOSMToken(function_file_path)
         
         url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
         url_2 = url.replace("http","https")
@@ -393,7 +482,7 @@ class Adapter:
             LOG.debug("function_tar_file: {}".format(function_tar_file)) 
             tar_file_path = package_path + '/files/' + function_tar_file
             LOG.debug("tar_file_path: {}".format(tar_file_path)) 
-            token = self.getOSMToken(function_file_path)
+            token = self.__getOSMToken(function_file_path)
             url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
             url_2 = url.replace("http","https")
             upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/gzip\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
@@ -407,7 +496,7 @@ class Adapter:
         except:
             LOG.debug("there is not tar file")
             LOG.debug("Function path: {}".format(function_file_path))             
-            token = self.getOSMToken(function_file_path)
+            token = self.__getOSMToken(function_file_path)
             LOG.debug(token)        
             url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
             url_2 = url.replace("http","https")
@@ -435,7 +524,7 @@ class Adapter:
         JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
         #LOG.debug(request)
         if self.authmanager.db_type == 'osm':               
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
             #content = request.get_json()
             #file_to_upload = content['function']
@@ -454,7 +543,7 @@ class Adapter:
             try:
                 callback_url = content['callback']
                 LOG.debug("Callback url specified")
-                _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
+                _thread.start_new_thread(self.osmmanager.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
             except:
                 LOG.debug("No callback url specified")                
 
@@ -473,7 +562,7 @@ class Adapter:
                     return (response.text, response.status_code, response.headers.items()) 
 
         if self.authmanager.db_type == 'osm':                
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
             url = self.authmanager.db_host + ':9999/osm/nsd/v1/ns_descriptors'
             url_2 = url.replace("http","https")
@@ -498,7 +587,7 @@ class Adapter:
                     return (response.text, response.status_code, response.headers.items()) 
 
         if self.authmanager.db_type == 'osm':                
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
             url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages'
             url_2 = url.replace("http","https")
@@ -639,7 +728,7 @@ class Adapter:
                 return error
 
         if self.authmanager.db_type == 'osm':
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
             ns_id = request
             LOG.debug(ns_id)                        
@@ -671,7 +760,7 @@ class Adapter:
             else:
                 LOG.debug("response ko")
         if self.authmanager.db_type == 'osm':
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug("OSM token : "+token)
             url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances'
             url_2 = url.replace("http","https")
@@ -721,7 +810,7 @@ class Adapter:
         if self.authmanager.db_type == 'osm':
             content = json.loads(request.__str__())
             LOG.info("osm-request: {}".format(content))
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             #content = request.get_json()           
             
             vim_id = self.getVimId(self.authmanager.vim_account)
@@ -760,7 +849,7 @@ class Adapter:
             try:
                 callback_url = content['callback']
                 LOG.debug("Callback url specified")
-                _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,inst))
+                _thread.start_new_thread(self.osmmanager.OSMUploadServiceCallback, (token,url_2,callback_url,inst))
             except:
                 LOG.debug("No callback url specified")                
 
@@ -853,7 +942,7 @@ class Adapter:
         if self.authmanager.db_type == 'osm':
             LOG.debug(request)
             LOG.debug(url)
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
 
             url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances_content'
@@ -957,7 +1046,7 @@ class Adapter:
 
     def deleteOSMDescriptors(self,instance_id):
         LOG.debug("deleteOSMDescriptors begins")
-        token = self.getOSMToken(request)
+        token = self.__getOSMToken(request)
         LOG.debug(token)        
         #url = sp_host_2 + ':9999/osm/nslcm/v1/ns_instances_content'
         url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances_content'
@@ -1017,30 +1106,7 @@ class Adapter:
         
         return "deleted"       
         
-    def getOSMToken(self,request):        
-        LOG.info("get osm token starts")      
-        JSON_CONTENT_HEADER = {'Accept':'application/json'}   
-
-        if self.authmanager.db_type == 'osm':
-            url = self.authmanager.db_host + ':9999/osm/admin/v1/tokens'
-            url2 = url.replace("http","https")
-            pr_name = self.authmanager.db_project_name
-            
-            if pr_name:
-                project_id_for_token = pr_name
-            if not pr_name:
-                data = request.get_json()
-                project_id_for_token = data['project_id']
-                LOG.debug("project name from json body:")
-                LOG.debug(pr_name)
-
-
-            data_for_token= "{username: \'" +self.authmanager.db_username+ "\', password: \'" +self.authmanager.db_password+ "\', project_id: \'" +project_id_for_token+ "\'}"
-
-            get_token = requests.post(url2,data=data_for_token,headers=JSON_CONTENT_HEADER,verify=False)
-            token_id = get_token.json()
-            LOG.debug("token: {}".format(token_id['id']))
-            return token_id['id']
+    
 
 
 
@@ -1066,7 +1132,7 @@ class Adapter:
             return vims
 
         if self.authmanager.db_type == 'osm':
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             url = self.authmanager.db_host + ':9999/osm/admin/v1/vim_accounts'
             url_2 = url.replace("http","https")
             
@@ -1100,7 +1166,7 @@ class Adapter:
             return vim
 
         if self.authmanager.db_type == 'osm':
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             url = self.authmanager.db_host + ':9999/osm/admin/v1/vim_accounts'
             url_2 = url.replace("http","https")
             
@@ -1175,369 +1241,7 @@ class Adapter:
         LOG.debug("resp_download_pkg: {}".format(msg))
         return (msg)
 
-    def deleteOSMService(self,id_to_delete):
-            LOG.info("delete osm service starts")
-            token = self.getOSMTokenForDelete()
-            LOG.debug(token)
-            url = self.authmanager.db_host + ':9999/osm/nsd/v1/ns_descriptors_content'
-            url_2 = url.replace("http","https")
-            delete_nsd = "curl -s --insecure -w \"%{http_code}\" -H \"Content-type: application/yaml\"  -H \"Accept: application/yaml\" -H \"Authorization: Bearer "
-            delete_nsd_2 = delete_nsd +token + "\"  " + url_2 + "/" + id_to_delete + " -X DELETE" 
-            LOG.debug("delete_nsd: {}".format(delete_nsd_2))
-            deletion = subprocess.check_output([delete_nsd_2], shell=True)
-            LOG.debug("resp_delete_nsd: {}".format(deletion))
-            return (deletion)
-
-    def deleteOSMFunction(self,id_to_delete):
-            LOG.info("delete osm function starts")
-            token = self.getOSMTokenForDelete()
-            url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages'
-            url_2 = url.replace("http","https")
-            delete_nsd = "curl -s --insecure -w \"%{http_code}\" -H \"Content-type: application/yaml\"  -H \"Accept: application/yaml\" -H \"Authorization: Bearer "
-            delete_nsd_2 = delete_nsd +token + "\"  " + url_2 + "/" + id_to_delete + " -X DELETE" 
-            LOG.debug("delete_osm_function: {}".format(delete_nsd_2))
-            deletion = subprocess.check_output([delete_nsd_2], shell=True)
-            LOG.debug("resp_delete_osm_function: {}".format(deletion))
-            return (deletion)            
-
-    def getOSMTokenForDelete(self):            
-        LOG.info("get osm token for delete starts")
-        JSON_CONTENT_HEADER = {'Accept':'application/json'}   
-
-        if self.authmanager.db_type == 'osm':
-            url = self.authmanager.db_host + ':9999/osm/admin/v1/tokens'
-            url_2 = url.replace("http","https")
-            pr_name = self.authmanager.db_project_name
-
-            if pr_name:
-                project_id_for_token = pr_name
-
-            if not pr_name:
-                project_id_for_token = self.authmanager.db_project
-                LOG.debug("project name from json body:")
-                LOG.debug(pr_name)
-
-            #LOG.debug(project_id_for_token)
-            admin_data = "{username: 'admin', password: 'admin', project_id: 'admin'}"
-            LOG.debug("admin_data: {}".format(admin_data))
-            data_for_token= "{username: \'" +self.authmanager.db_username+ "\', password: \'" +self.authmanager.db_password+ "\', project_id: \'" +project_id_for_token+ "\'}"
-            get_token = requests.post(url_2,data=data_for_token,headers=JSON_CONTENT_HEADER,verify=False)
-            
-            token_id = get_token.json()
-            LOG.debug("token: {}".format(token_id['id']))
-            return token_id['id']            
-
-
-    def getOSMInstaceStatus(self,service_id): 
-            LOG.info("get osm instance status starts")            
-            token = self.getOSMToken(service_id)
-            LOG.debug(token)                 
-            url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances/' + service_id
-            url_2 = url.replace("http","https")
-            status_ns = "curl -s --insecure -w \"%{http_code}\" -H \"Content-type: application/yaml\"  -H \"Accept: application/yaml\" -H \"Authorization: Bearer "
-            status_ns_2 = status_ns +token + "\" "
-            status_ns_3 = status_ns_2 + " " + url_2        
-            LOG.debug("curl_status: {}".format(status_ns_3))
-            status = subprocess.check_output([status_ns_3], shell=True)    
-            LOG.debug("resp_status: {}".format(status))                    
-            return (status)     
-
-    def OSMInstantiateCallback(self, callback_url,inst_resp_yaml):
-        LOG.info("osm instantiate callback starts")
-        response = yaml.load(inst_resp_yaml)
-        LOG.debug("inst_resp_yaml: {}".format(response))
-        token = self.getOSMToken(request)
-        
-        url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances_content'
-        url_2 = url.replace("http","https")         
-
-        service_id = response['id']
-        status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id 
-        LOG.debug("status_url: {}".format(status_url))
-        
-        operational_status = None
-        status = None 
-        '''
-        kwargs = {}
-        osmcli = osmclient.Client(host=self.authmanager.db_host, sol005=True, **kwargs)
-        resp = osmcli.ns.create(nsd_name, ns_name, self.authmanager.vim_account)
-        LOG.info("osmcli_inst_dump: {}".format(yaml.safe_dump(resp)))            
-        '''
-        while ( operational_status != 'running' and operational_status != 'error' and operational_status != 'failed' ):               
-            try:
-                '''
-                resp = osmcli.ns.create(nsd_name, ns_name, self.authmanager.vim_account)
-                LOG.debug("osmcli_inst_dump: {}".format(yaml.safe_dump(resp)))
-                '''
-                status_curl = subprocess.check_output([status_url], shell=True)
-                
-                
-                instance_json = json.loads(status_curl)
-                LOG.debug("instance_json: {}".format(instance_json))
-                
-                operational_status = instance_json['operational-status']
-                LOG.debug("operational_status: {}".format(operational_status))
-                
-                status = instance_json['config-status']
-                LOG.debug("config-status: {}".format(status)) 
-                
-                detailed_status = instance_json['detailed-status']
-                LOG.debug("detailed_status: {}".format(detailed_status))
-                
-                LOG.debug("Retraying in 3 sec")
-                time.sleep(3)
-                
-            except:
-                LOG.debug("Exception while retrying")
-                
-               
-
-        callback_msg = None
-
-        '''
-        while ( config_status == 'init' ) : 
-            try:
-                status = data['config-status']                    
-                LOG.debug(status)
-            except:
-                LOG.debug("Retraying in 3 sec")
-                LOG.debug(status)
-                time.sleep(3)
-                status_curl = subprocess.check_output([status_url], shell=True)
-                LOG.debug(status_curl)
-                instance_json = json.loads(status_curl)
-                config_status = instance_json['config-status']
-                LOG.debug(config_status)
-                operational_status = instance_json['operational-status']
-                LOG.debug(operational_status)
-                detailed_status = instance_json['detailed-status']
-                LOG.debug(detailed_status)   
-        '''                
-
-
-
-        if operational_status == 'failed':
-            #callback_msg = detailed_status.__str__()
-            detailed_status = instance_json['detailed-status']
-            LOG.debug("detailed_status: {}".format(detailed_status)) 
-            callback_msg = str(detailed_status)
-            callback_msg = "{\"error\": \"Error instantiating, check the logs\"}"
-
-            callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url                
-            LOG.debug("callback_post: {}".format(callback_post)) 
-            call = subprocess.check_output([callback_post], shell=True)
-            LOG.debug("call: {}".format(call)) 
-
-
-            callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + self.authmanager.mon_url            
-            LOG.debug("callback_post_monitoring: {}".format(callback_post_monitoring)) 
-            call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-            LOG.debug("call_monitoring: {}".format(call_monitoring)) 
-
-        if operational_status == 'error':
-            
-            detailed_status = instance_json['detailed-status']
-            LOG.debug("detailed_status: {}".format(detailed_status)) 
-            callback_msg = str(detailed_status)
-            callback_msg = "{\"error\": \"Error instantiating, check the logs\"}"
-
-            callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url                
-            LOG.debug("callback_post: {}".format(callback_post))
-            call = subprocess.check_output([callback_post], shell=True)
-            LOG.debug("resp_call: {}".format(call))
-
-
-            callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + self.authmanager.mon_url            
-            LOG.debug("callback_post_monitoring: {}".format(callback_post_monitoring))
-            call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-            LOG.debug("call_monitoring: {}".format(call_monitoring))        
-
-        #if operational_status == 'running':             
-        if ( operational_status == 'running' and config_status == 'configured' ) :             
-            LOG.debug("RUNNING/CONFIGURED NS")
-            status = config_status
-            LOG.debug("status: {}".format(status)) 
-            callback_msg = self.instantiationInfoCurator(service_id)
-            LOG.debug("callback_msg: {}".format(callback_msg)) 
-
-            callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url
-            LOG.debug("callback_post: {}".format(callback_post)) 
-            call = subprocess.check_output([callback_post], shell=True)
-            LOG.debug("call: {}".format(call)) 
-
-            #Monitoring callback       
-            callback_msg = self.instantiationInfoMonitoring(service_id)
-            callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + self.authmanager.mon_url
-            LOG.debug("callback_post_monitoring: {}".format(callback_post_monitoring)) 
-            call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-            LOG.debug("call_monitoring: {}".format(call_monitoring))
-        
-        LOG.debug("callback ends")            
-
-        '''
-        status = config_status
-        LOG.debug(status)
-        #callback_msg='{\"Message\":\"The service ' + service_id + ' is in status: ' + status + '\"}'
-        callback_msg = self.instantiationInfoCurator(service_id)
-        LOG.debug(callback_msg)
-        
-        #callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url
-        LOG.debug(callback_post)
-        call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug(call)
-
-        #Monitoring callback       
-        callback_msg = self.instantiationInfoMonitoring(service_id)
-        callback_url_monitoring = self.getMonitoringURLs()
-        callback_post_monitoring = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + callback_msg + "'" + " " + callback_url_monitoring
-        LOG.debug(callback_post_monitoring)
-        call_monitoring = subprocess.check_output([callback_post_monitoring], shell=True)
-        LOG.debug(call_monitoring)
-        LOG.debug("callback ends")
-        '''
-
-    def OSMTerminateStatus(self,url_2,ns_id):
-        LOG.info("osm terminate status starts")        
-        service_id = ns_id
-        token = self.getOSMToken(ns_id)
-        status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug("status_url: {}".format(status_url))
-        status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug("status_curl: {}".format(status_curl))
-        with open('/app/temp.file') as f:
-            data = json.load(f)
-
-        status = 'my_status'
-        is_active = 'not'
-
-        while status != '404':    
-            while is_active == 'not':
-                try:
-                    status = data['admin']['deployed']['RO']['nsr_status'] 
-                    is_active = 'yes'
-                    status = '404'
-                except:
-                    is_active = 'not'
-                    status = 'my_status'
-                    LOG.debug("Retraying in 3 sec")
-                    time.sleep(3)
-                    status_curl = subprocess.check_output([status_url], shell=True)
-                    LOG.debug("status_curl: {}".format(status_curl))
-                    with open('/app/temp.file') as f:
-                        data = json.load(f)
-
-        status = "terminated"  
-        return status
-
-    def OSMTerminateCallback(self,token,url_2,callback_url,ns_id):
-        LOG.info("osm terminate callback starts")
-        service_id = ns_id
-        status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug("status_url: {}".format(status_url))
-        status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug("status_curl: {}".format(status_url))
-        with open('/app/temp.file') as f:
-            data = json.load(f)
-
-        status = 'my_status'
-        is_active = 'not'
-
-        while status != '404':    
-            while is_active == 'not':
-                try:
-                    status = data['admin']['deployed']['RO']['nsr_status'] 
-                    is_active = 'yes'
-                    status = '404'
-                except:
-                    is_active = 'not'
-                    status = 'my_status'
-                    LOG.debug("Retraying in 3 sec")
-                    time.sleep(3)
-                    status_curl = subprocess.check_output([status_url], shell=True)
-                    LOG.debug("status_curl: {}".format(status_url))
-                    with open('/app/temp.file') as f:
-                        data = json.load(f)
-                                         
-        LOG.debug("status: {}".format(status))
-        callback_msg='{\"Message\":\"The service ' + service_id + ' was terminated\"}'
-        LOG.debug("callback_msg: {}".format(callback_msg))
-        callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug("call: {}".format(call))
-        LOG.debug("callback end")        
-
-    def OSMUploadFunctionCallback(self,token,url_2,callback_url,inst_resp_yaml):
-        LOG.info("osm upload function callback starts")                        
-        response = yaml.load(inst_resp_yaml)
-        service_id = response['id']
-        status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug("status_url: {}".format(status_url))
-        status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug("status_curl: {}".format(status_curl))
-
-        with open('/app/temp.file') as f:
-            data = json.load(f)
-
-        LOG.debug(data)
-        status = 'my_status'
-
-        while status == 'my_status':                            
-            status = data['_admin']['onboardingState']
-            if status != 'ONBOARDED':
-                LOG.debug("Retrying in 3 sec")
-                LOG.debug(status)
-                time.sleep(3)
-                status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-                LOG.debug(status_url)            
-                status_curl = subprocess.check_output([status_url], shell=True)
-                LOG.debug(status_curl)
-                with open('/app/temp.file') as f:
-                    data = json.load(f)
-                    LOG.debug("data: {}".format(data))
      
-        callback_msg='{\"Message\":\"The function descriptor ' + service_id + ' is in status: ' + status + '\"}'
-        LOG.debug("callback_msg: {}".format(callback_msg))
-        callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        LOG.debug("callback_post: {}".format(callback_post))
-        call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug("call: {}".format(call))
-        LOG.debug("callback end")        
-
-    def OSMUploadServiceCallback(self,token,url_2,callback_url,inst_resp_yaml):
-        LOG.info("osm upload service callback starts")                      
-        response = yaml.load(inst_resp_yaml)
-        service_id = response['id']
-        status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-        LOG.debug("status_url: {}".format(status_url))
-        status_curl = subprocess.check_output([status_url], shell=True)
-        LOG.debug("status_curl: {}".format(status_curl))
-        with open('/app/temp.file') as f:
-            data = json.load(f)
-        LOG.debug(data)
-        status = 'my_status'
-
-        while status == 'my_status': 
-            status = data['_admin']['onboardingState']
-            if status != 'ONBOARDED':
-                LOG.debug("Retrying in 3 sec")
-                time.sleep(3)
-                status_url = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\" " + url_2 + "/" + service_id + " > /app/temp.file"
-                LOG.debug("status_url: {}".format(status_url))          
-                status_curl = subprocess.check_output([status_url], shell=True)
-                LOG.debug("status_curl: {}".format(status_curl)) 
-                with open('/app/temp.file') as f:
-                    data = json.load(f)
-                    LOG.debug(data)     
-        
-        LOG.debug("status: {}".format(status)) 
-        callback_msg='{\"Message\":\"The function descriptor ' + service_id + ' is in status: ' + status + '\"}'
-        LOG.debug("callback_msg: {}".format(callback_msg)) 
-        callback_post = "curl -s -X POST --insecure -H 'Content-type: application/json' " + " --data '" + str(callback_msg) + "'" + " " + callback_url
-        LOG.debug("callback_post: {}".format(callback_post)) 
-        call = subprocess.check_output([callback_post], shell=True)
-        LOG.debug("call: {}".format(call)) 
-        LOG.debug("callback end")     
 
     def monitoringTests(self,monitoring_type):
         LOG.info("monitoring tests starts")
@@ -1638,7 +1342,7 @@ class Adapter:
 
     def osmInstantiationIPs(self,request):    
         LOG.info("osm instantiation ips starts")
-        token = self.getOSMToken(request)
+        token = self.__getOSMToken(request)
         LOG.debug(token)
         ns_id = request
         LOG.debug(ns_id)            
@@ -1956,8 +1660,8 @@ class Adapter:
 
                 response_function = response_function + "\"vc_id\": \"" + vc_id + "\","
                 response_function = response_function + "\"vim_id\": \"" + vim_id + "\","
-                vim_info = self.getOSMVIMInfo(vim_id)
-                vim_url = self.getOSMVIMInfoURL(vim_info)
+                vim_info = self.osmmanager.getOSMVIMInfo(vim_id)
+                vim_url = self.osmmanager.getOSMVIMInfoURL(vim_info)
                 response_function = response_function + "\"vim_endpoint\": \"" + vim_url + "\","
 
                 response_function_2 = response_function[:-1]
@@ -2231,7 +1935,7 @@ class Adapter:
             return response
 
     def functionRecordOSM(self, vnfr_id):
-        token = self.getOSMToken(vnfr_id)
+        token = self.__getOSMToken(vnfr_id)
         LOG.debug(token)
         url = self.authmanager.db_host + ':9999/osm/nslcm/v1/vnf_instances'
         url_2 = url.replace("http","https")
@@ -2245,7 +1949,7 @@ class Adapter:
         return (vnfr)  
 
     def functionDescriptorOSM(self, vnfd_id):
-        token = self.getOSMToken(vnfd_id)
+        token = self.__getOSMToken(vnfd_id)
         LOG.debug(token)
         url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages'        
         url_2 = url.replace("http","https")
@@ -2346,7 +2050,7 @@ class Adapter:
         download_pkg = self.downloadPackageTGO(package_id)
         download_pkg_json = json.loads(download_pkg)        
         package_path = download_pkg_json['package']        
-        upload_pkg = self.uploader.uploadPackage(package_path)  
+        upload_pkg = self.uploadPackage(package_path)  
         LOG.debug(upload_pkg)
         return upload_pkg     
 
@@ -2441,18 +2145,18 @@ class Adapter:
                     LOG.debug(msg)
                     return msg 
 
-                upload_pkg = self.uploader.uploadPackage(package_path_downloaded)
+                upload_pkg = self.uploadPackage(package_path_downloaded)
                 time.sleep(7) 
                 package_uploaded = True
                 LOG.debug("upload package response")
                 LOG.debug(upload_pkg)
                 upload_pkg_json =  json.loads(upload_pkg)
                 upload_pkg_json_process_uuid =  upload_pkg_json['package_process_uuid']
-                upload_pkg_status = self.uploader.uploadPackageStatus(upload_pkg_json_process_uuid)
+                upload_pkg_status = self.uploadPackageStatus(upload_pkg_json_process_uuid)
                 LOG.debug(upload_pkg_status)
 
                 while upload_pkg_status == 'running':
-                    upload_pkg_status = self.uploader.uploadPackageStatus(upload_pkg_json_process_uuid)                    
+                    upload_pkg_status = self.uploadPackageStatus(upload_pkg_json_process_uuid)                    
                     LOG.debug(upload_pkg_status)
                     if upload_pkg_status == 'running':
                         time.sleep(3)  
@@ -3040,54 +2744,7 @@ class Adapter:
             return (instantiate_str)                 
                  
 
-    def getOSMServiceId(self,name,vendor,version):
-        LOG.info("get OSM service id starts")
-        service_id = None 
-        exists = 'NO'   
-        token = self.getOSMToken(request)
-        LOG.debug(token)        
-        url = self.authmanager.db_host + ':9999/osm/nsd/v1/ns_descriptors_content'
-        url_2 = url.replace("http","https")
-        LOG.debug(url_2)        
-        nsds = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        nsds_2 = nsds +token + "\"  " + url_2 
-        LOG.debug(nsds_2)
-        response = None
-
-        try:
-            LOG.debug("loading descriptrs list:")
-            response = subprocess.check_output([nsds_2], shell=True)
-            LOG.debug(response)
-        except:
-            service_id = "error"
-            return service_id        
-
-        jjson = json.loads(response)
-        LOG.debug(jjson)
-
-        LOG.debug(name)
-        LOG.debug(vendor)
-        LOG.debug(version)
-
-        for x in jjson:
-            try:
-                LOG.debug(x)
-                LOG.debug(x['name'])
-                LOG.debug(x['vendor'])
-                LOG.debug(x['version'])
-                LOG.debug(x['_id'])
-
-                if ( x['name'] == name and x['vendor'] == vendor and x['version'] == version ):
-                    LOG.debug(x['name'])
-                    service_id = x['_id']
-                    exists = 'YES' 
-            except:
-                LOG.debug("service not readeble")
-        
-        if service_id == None: 
-            service_id = "error"
-
-        return service_id
+    
 
     def getUploadedOSMServiceId(self,upload_service):
         LOG.debug("This is the upload service response:")
@@ -3362,31 +3019,7 @@ class Adapter:
                 return msg              
         
 
-    def getOSMVIMInfo(self,vim_id):
-        LOG.info("get OSM get vim info starts")
-        service_id = None 
-        exists = 'NO'   
-        token = self.getOSMToken(request)
-        LOG.debug(token)  
-        url = self.authmanager.db_host.replace("http","https")      
-        url_2 = url + ':9999/osm//admin/v1/vim_accounts/' + vim_id      
-        vim_info = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        vim_info_2 = vim_info +token + "\"  " + url_2 
-        LOG.debug(vim_info_2)       
-
-        response = subprocess.check_output([vim_info_2], shell=True)
-        LOG.debug(response)
-        return response
-
-    def getOSMVIMInfoURL(self,vim_info):
-        LOG.info("get OSM get vim info url starts")
-        
-        content = json.loads(vim_info)
-        LOG.debug(content)
-        vim_url_full = content['vim_url']
-        vim_url_array = vim_url_full.split(":")
-        vim_url_center = vim_url_array[1]
-        return vim_url_center[2:]
+    
 
         
     def instantiationDeleteTest(self,request):    
@@ -3461,7 +3094,7 @@ class Adapter:
 
         if self.authmanager.db_type == 'osm':
             LOG.debug(request)
-            token = self.getOSMToken(request)
+            token = self.__getOSMToken(request)
             LOG.debug(token)
 
             url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances_content'
@@ -3572,18 +3205,18 @@ class Adapter:
                     LOG.debug(msg)
                     return msg 
 
-                upload_pkg = self.uploader.uploadPackage(package_path_downloaded)
+                upload_pkg = self.uploadPackage(package_path_downloaded)
                 time.sleep(7) 
                 package_uploaded = True
                 LOG.debug("upload package response")
                 LOG.debug(upload_pkg)
                 upload_pkg_json =  json.loads(upload_pkg)
                 upload_pkg_json_process_uuid =  upload_pkg_json['package_process_uuid']
-                upload_pkg_status = self.uploader.uploadPackageStatus(upload_pkg_json_process_uuid)
+                upload_pkg_status = self.uploadPackageStatus(upload_pkg_json_process_uuid)
                 LOG.debug(upload_pkg_status)
 
                 while upload_pkg_status == 'running':
-                    upload_pkg_status = self.uploader.uploadPackageStatus(upload_pkg_json_process_uuid)                    
+                    upload_pkg_status = self.uploadPackageStatus(upload_pkg_json_process_uuid)                    
                     LOG.debug(upload_pkg_status)
                     if upload_pkg_status == 'running':
                         time.sleep(3)  
@@ -3867,141 +3500,6 @@ class Adapter:
             LOG.debug(call)
             
         LOG.info("sonata instantiate callback ends")  
-
-
-
-
-
-
-    def getVnVONAPServiceId(self,name,vendor,version):    
-        LOG.info("get vnv onap service id starts")
-        uuid = None
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}  
-                 
-        #url = 'http://pre-int-vnv-bcn.5gtango.eu:32002/api/v3/services'  
-        url = 'http://tng-sec-gtw/api/v3/services'  
-        response = requests.get(url,headers=JSON_CONTENT_HEADER)
-        LOG.debug(response)
-        response_json = response.content
-        jjson = json.loads(response_json)
-        for x in jjson:
-            LOG.debug(x)            
-            try:
-                osm_name = x['nsd']['nsd:nsd-catalog']['nsd']['name']
-                LOG.debug("ONAP service descriptor, checking if is the one we are searching:") 
-                if ( x['nsd']['nsd:nsd-catalog']['nsd']['name'] == name and x['nsd']['nsd:nsd-catalog']['nsd']['vendor'] == vendor and x['nsd']['nsd:nsd-catalog']['nsd']['version'] == version ) :
-                    LOG.debug("same name")
-                    uuid = x['uuid']
-                    LOG.debug(uuid)  
-            except:
-                LOG.debug("this descriptor is not an ONAP one")       
-
-        LOG.debug(uuid)
-        return uuid    
-
-    
-    def getSPONAPServiceId(self,name,vendor,version):        
-        LOG.info("get sp onap service id starts")
-        uuid = None
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}          
-
-        
-
-        return uuid
-
-      
-
-
-    def getONAPInstance(self,instance_id,service_name):        
-        LOG.info("get onap instance object starts")
-        uuid = None
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-
-        url = self.authmanager.db_host + ':8443/nbi/api/v3/service/'    
-        url = url + instance_id + '/'
-        url = url + '?relatedParty.id='
-        url = url + self.authmanager.db_username
-        url = url + '&serviceSpecification.name='
-        url = url + service_name
-        response = requests.get(url,headers=JSON_CONTENT_HEADER)
-        LOG.debug(response)
-        return response        
-
-    def instantiateONAP(self,externalId, service_instance_name, auto_service_id):
-        
-        url = self.authmanager.db_host + '/serviceOrder'
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json', 'Accept':'application/json'} 
-
-        DATA = {
-            "externalId": "{{" + externalId + "}}",
-            "priority": "1",
-            "description": "order for generic customer via Postman",
-            "category": "Consumer",
-            "requestedStartDate": "2018-04-26T08:33:37.299Z",
-            "requestedCompletionDate": "2018-04-26T08:33:37.299Z",
-            "relatedParty": [
-                {
-                "id": "{{" + self.authmanager.db_username + "}}",
-                "role": "ONAPcustomer",
-                "name": "{{" + self.authmanager.db_username + "}}"
-                }
-            ],
-            "orderItem": [
-                {
-                "id": "1",
-                "action": "add",
-                "service": {
-                    "name": "{{" + service_instance_name + "}}",
-                    "serviceState": "active",
-                    "serviceSpecification": {
-                    "id": "{{" + auto_service_id + "}}"
-                    }
-                }
-                }
-            ]
-            }        
-
-        response = requests.post(url,data=DATA, headers=JSON_CONTENT_HEADER)
-        LOG.debug(response)
-        return response       
-
-    def terminateONAP(self,externalId, service_instance_name, auto_service_id):
-        
-        url = self.authmanager.db_host + '/serviceOrder'
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json', 'Accept':'application/json'} 
-
-        DATA = {
-            "externalId": "{{" + externalId + "}}",
-            "priority": "1",
-            "description": "ordering on generic customer via Postman",
-            "category": "Consumer",
-            "requestedStartDate": "2018-04-26T08:33:37.299Z",
-            "requestedCompletionDate": "2018-04-26T08:33:37.299Z",
-            "relatedParty": [
-                {
-                "id": "{{" + self.authmanager.db_username + "}}",
-                "role": "ONAPcustomer",
-                "name": "{{" + self.authmanager.db_username + "}}"
-                }
-            ],
-            "orderItem": [
-                {
-                "id": "1",
-                "action": "delete",
-                "service": {
-                    "id": "{{" + auto_service_instance_id + "}}",
-                    "serviceState": "active",
-                    "serviceSpecification": {
-                    "id": "{{" + auto_service_id + "}}"
-                    }
-                }
-                }
-            ]
-            }               
-
-        response = requests.post(url,data=DATA, headers=JSON_CONTENT_HEADER)
-        LOG.debug(response)
-        return response   
 
 
     def getSPIp(self):        
