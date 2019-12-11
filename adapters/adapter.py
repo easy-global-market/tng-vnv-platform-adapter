@@ -76,11 +76,44 @@ class Adapter:
     def OSMTerminateStatus(self,url_2,ns_id):
         return self.osmmanager.OSMTerminateStatus(url_2,ns_id) 
     
+    def getUploadedOSMServiceId(self,upload_service):
+        return self.osmmanager.getUploadedOSMServiceId(upload_service) 
+
+    def createFunctionsArray(self,package_path):
+        return self.osmmanager.createFunctionsArray(package_path)
+     
+    def uploadOSMService(self,request):  
+        return self.osmmanager.uploadOSMService(request)
+        
+    def uploadOSMFunctionAndFiles(self,function_file_path,package_path):
+        return self.osmmanager.uploadOSMFunctionAndFiles(function_file_path,package_path)
+
+
+    def uploadOSMFunctionAndTarFiles(self,function_file_path,package_path):
+        return self.osmmanager.uploadOSMFunctionAndTarFiles(function_file_path,package_path)
+
+    def uploadOSMFunction(self,request):
+        return self.osmmanager.uploadOSMFunction(request)
+        
+    def deleteOSMDescriptors(self,instance_id):
+        return self.osmmanager.deleteOSMDescriptors(instance_id)
+    
+    def osmInstantiationIPs(self,request): 
+        return self.osmmanager.osmInstantiationIPs(request)   
+    
+    def functionRecordOSM(self, vnfr_id):
+        return self.osmmanager.functionRecordOSM(vnfr_id)
+
+    def functionDescriptorOSM(self, vnfd_id):
+        return self.osmmanager.functionDescriptorOSM(vnfd_id)
+    
     def __getOSMToken(self,request):
         return self.osmmanager.getOSMToken(request)
     
     #######################ONAP
     #UNUSED
+    
+    
     def getVnVONAPServiceId(self,name,vendor,version):    
         return self.onapmanager.getVnVONAPServiceId(name,vendor,version)   
     
@@ -116,40 +149,7 @@ class Adapter:
             if request.method == 'POST':
                 return upload.text
 
-    def uploadOSMService(self,request):  
-        LOG.info("upload osm service starts")
-        if self.authmanager.db_type == 'osm':               
-            token = self.__getOSMToken(request)
-            #file_to_upload = content['service']
-            file_to_upload = request
-            file_composed = "@" + file_to_upload
-            file = {'nsd-create': open(file_to_upload, 'rb')}           
-            data = {'service':file_to_upload}
-
-            HEADERS = {
-                'Accept':'application/yaml',
-                'Content-Type':'application/zip', 
-                'Authorization':'Bearer ' +token+''                
-            }
-            url = self.authmanager.db_host + ':9999/osm/nsd/v1/ns_descriptors_content'            
-            url_2 = url.replace("http","https")
-        
-            upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/yaml\"  -H \"Accept: application/yaml\" -H \"Authorization: Bearer "
-            upload_nsd_2 = upload_nsd +token + "\" "
-            upload_nsd_3 = upload_nsd_2 + " --data-binary "
-            upload_nsd_4 = upload_nsd_3 + "\"@" +file_to_upload+ "\" " + url_2
-
-            LOG.debug("upload: {}".format(upload_nsd_4))
-            upload = subprocess.check_output([upload_nsd_4], shell=True)
-            try:
-                callback_url = content['callback']
-                LOG.debug("Callback url specified")
-                _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
-            except:
-                LOG.debug("No callback url specified")
-
-            LOG.debug("resp_upload: {}".format(upload))
-            return (upload)  
+    
     
     def uploadPackageStatus(self,process_uuid):
 
@@ -431,123 +431,7 @@ class Adapter:
         return (create_tar)
  
 
-    def uploadOSMFunctionAndFiles(self,function_file_path,package_path):
-        LOG.info("upload osm and files function starts")
-
-        try:
-            function_with_files = self.getOSMFunctionFiles(function_file_path,package_path)
-            LOG.debug("function_with_files: {}".format(function_with_files)) 
-        except:
-            LOG.debug ("error in function_with_files")
-            sys.exit()
- 
-        try:
-            create = self.createTarOSMFunction(function_with_files,package_path)
-            LOG.debug("create_tar_osm: {}".format(create)) 
-        except:
-            LOG.debug ("error creating tar")
-            sys.exit()            
-        
-        tar_file_path = '/app/packages/test.tar.gz'
-
-        token = self.__getOSMToken(function_file_path)
-        
-        url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
-        url_2 = url.replace("http","https")
-
-        upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/gzip\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        upload_nsd_2 = upload_nsd +token + "\" "
-        upload_nsd_3 = upload_nsd_2 + " --data-binary "
-        upload_nsd_4 = upload_nsd_3 + "\"@" +tar_file_path+ "\" " + url_2
-        LOG.debug("upload_call: {}".format(upload_nsd_4)) 
-        upload = subprocess.call([upload_nsd_4], shell=True)
-        #upload = subprocess.check_output([upload_nsd_4], shell=True)
-        
-        '''
-        try:
-            callback_url = content['callback']
-            LOG.debug("Callback url specified")
-            _thread.start_new_thread(self.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
-        except:
-            LOG.debug("No callback url specified")                
-        '''
-        return (upload)   
-          
-
-    def uploadOSMFunctionAndTarFiles(self,function_file_path,package_path):
-        LOG.info("upload osm vnfd tar files function starts")
-
-        try:            
-            function_tar_file = self.getOSMFunctionTarFile(function_file_path,package_path)
-            LOG.debug("function_tar_file: {}".format(function_tar_file)) 
-            tar_file_path = package_path + '/files/' + function_tar_file
-            LOG.debug("tar_file_path: {}".format(tar_file_path)) 
-            token = self.__getOSMToken(function_file_path)
-            url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
-            url_2 = url.replace("http","https")
-            upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/gzip\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-            upload_nsd_2 = upload_nsd +token + "\" "
-            upload_nsd_3 = upload_nsd_2 + " --data-binary "
-            upload_nsd_4 = upload_nsd_3 + "\"@" +tar_file_path+ "\" " + url_2
-            LOG.debug (upload_nsd_4)
-            upload = subprocess.call([upload_nsd_4], shell=True)
-            return (upload)  
-
-        except:
-            LOG.debug("there is not tar file")
-            LOG.debug("Function path: {}".format(function_file_path))             
-            token = self.__getOSMToken(function_file_path)
-            LOG.debug(token)        
-            url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
-            url_2 = url.replace("http","https")
-            upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-            upload_nsd_2 = upload_nsd +token + "\" "
-            upload_nsd_3 = upload_nsd_2 + " --data-binary "
-            upload_nsd_4 = upload_nsd_3 + "\"@" +function_file_path+ "\" " + url_2
-            LOG.debug (upload_nsd_4)
-            upload = subprocess.call([upload_nsd_4], shell=True)
-            return (upload)              
-
-
-
-
-
-
-
-
-
-
-
-
-    def uploadOSMFunction(self,request):
-        LOG.info("upload osm function starts")
-        JSON_CONTENT_HEADER = {'Content-Type':'application/json'}   
-        #LOG.debug(request)
-        if self.authmanager.db_type == 'osm':               
-            token = self.__getOSMToken(request)
-            LOG.debug(token)
-            #content = request.get_json()
-            #file_to_upload = content['function']
-            file_to_upload = request
-            
-            #url = sp_host_2 + ':9999/osm/vnfpkgm/v1/vnf_packages'
-            url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages_content'
-            url_2 = url.replace("http","https")
-
-            upload_nsd = "curl -s -X POST --insecure -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-            upload_nsd_2 = upload_nsd +token + "\" "
-            upload_nsd_3 = upload_nsd_2 + " --data-binary "
-            upload_nsd_4 = upload_nsd_3 + "\"@" +file_to_upload+ "\" " + url_2
-            LOG.debug(upload_nsd_4)
-            upload = subprocess.check_output([upload_nsd_4], shell=True)
-            try:
-                callback_url = content['callback']
-                LOG.debug("Callback url specified")
-                _thread.start_new_thread(self.osmmanager.OSMUploadServiceCallback, (token,url_2,callback_url,upload))
-            except:
-                LOG.debug("No callback url specified")                
-
-            return (upload) 
+    
 
     def getServices(self):    
         LOG.info("get services starts")
@@ -1044,67 +928,7 @@ class Adapter:
         return service_descriptor_version
 
 
-    def deleteOSMDescriptors(self,instance_id):
-        LOG.debug("deleteOSMDescriptors begins")
-        token = self.__getOSMToken(request)
-        LOG.debug(token)        
-        #url = sp_host_2 + ':9999/osm/nslcm/v1/ns_instances_content'
-        url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances_content'
-        url_2 = url.replace("http","https")
-        LOG.debug(url_2)
-
-        #content = json.loads(request)
-        ns_id = instance_id
-        LOG.debug(ns_id)
-        
-        LOG.debug(ns_id)
-        instance_ns = "curl -s --insecure -H \"Content-type: application/json\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        instance_ns_2 = instance_ns +token + "\" "
-        instance_ns_3 = instance_ns_2 + " " + url_2 + "/" + ns_id          
-        LOG.debug(instance_ns_3)
-
-        instance = subprocess.check_output([instance_ns_3], shell=True)
-        LOG.debug(instance)
-        instance_json = json.loads(instance)
-        LOG.debug(instance_json)
-        nsdId = instance_json['instantiate_params']['nsdId']
-        LOG.debug(nsdId)
-        vnfr_array = instance_json['constituent-vnfr-ref']
-        vnfds = []
-        LOG.debug(vnfr_array)
-        for vnfr_id in vnfr_array:
-            LOG.debug("FUCNTIONS")
-            LOG.debug(vnfr_id)                
-            function_request = self.functionRecordOSM(vnfr_id)
-            function_request_json =  json.loads(function_request)
-            LOG.debug(function_request_json)
-            vnfd_id = function_request_json['vnfd-id']
-            LOG.debug(vnfd_id)
-            vnfds.append(vnfd_id)
-
-
-        try:
-            instance = None
-            instance = subprocess.check_output([instance_ns_3], shell=True)
-            LOG.debug(instance)
-            while instance is not None:
-                instance = subprocess.check_output([instance_ns_3], shell=True)
-                LOG.debug(instance)
-                instance_json = json.loads(instance)
-                status = instance_json['status']
-                if status == '404':
-                    raise Exception('The instance has been terminated. Deleting descriptors...') 
-        except:
-            LOG.debug("The instance has been terminated. Deleting descriptors...")
-        
-        deleteOSMService = self.deleteOSMService(nsdId)
-        LOG.debug(deleteOSMService)
-        time.sleep(7)
-        for vnfd_id in vnfds:
-            deleteOSMFunction = self.deleteOSMFunction(vnfd_id)
-            LOG.debug(deleteOSMFunction)
-        
-        return "deleted"       
+         
         
     
 
@@ -1340,61 +1164,7 @@ class Adapter:
 
 
 
-    def osmInstantiationIPs(self,request):    
-        LOG.info("osm instantiation ips starts")
-        token = self.__getOSMToken(request)
-        LOG.debug(token)
-        ns_id = request
-        LOG.debug(ns_id)            
-        
-        url = self.authmanager.db_host + ':9999/osm/nslcm/v1/ns_instances'
-        url_2 = url.replace("http","https")
-        LOG.debug(url_2)
-        
-        status_ns = "curl -s --insecure  -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        status_ns_2 = status_ns +token + "\" "
-        status_ns_3 = status_ns_2 + " " + url_2 + "/" + ns_id          
-        LOG.debug(status_ns_3)
 
-        status = subprocess.check_output([status_ns_3], shell=True)
-        status = subprocess.check_output([status_ns_3], shell=True)
-        LOG.debug(json.loads(status))
-        ns_instance_json = json.loads(status)
-        vnfs_array_json = ns_instance_json['constituent-vnfr-ref']
-        url_3 = url_2.replace("ns_instances","vnf_instances")
-        response = "{\"NSI id\": \"" + ns_instance_json['id'] + "\", \"vnf_instances\": ["
-
-        for vnf_id in vnfs_array_json:
-            LOG.debug(vnf_id)
-            url_4 = "curl -s --insecure  -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer " + token + "\"  " + url_3+ "/" + vnf_id
-            vnf_instance_curl= subprocess.check_output([url_4], shell=True)
-            vnf_instance_json = json.loads(vnf_instance_curl)
-            LOG.debug("This is an VNF instance:")
-            LOG.debug(vnf_instance_json)
-
-            vdur_arrays = vnf_instance_json['vdur']            
-            for x in vdur_arrays:
-                LOG.debug(x)
-                vdur_name = x['name']
-                response = response + "{\"instance_name\": \"" + x['name'] +"\",\"instance_id\": \"" + x['_id']+"\","
-                LOG.debug(vdur_name)    
-                vdur_interfaces = x['interfaces']	
-                LOG.debug(vdur_interfaces)
-                response = response + "\"interfaces\":{"
-                for y in vdur_interfaces:
-                    LOG.debug(y)
-                    interface_name = y['name']
-                    interface_ip_addresss = y['ip-address']
-                    LOG.debug(interface_name)
-                    LOG.debug(interface_ip_addresss) 
-                    response = response + "\"" + interface_name + "\": \"" + interface_ip_addresss + "\"}}," 
-                    LOG.debug(response)
-                      
-                response_2 = response[:-1]
-
-        response_3 = response_2 + "]}"
-        LOG.debug(response_3)
-        return response_3
 
     def getVnVPackages(self):    
         LOG.info("get vnv packages starts")
@@ -1934,33 +1704,7 @@ class Adapter:
             LOG.debug(response)
             return response
 
-    def functionRecordOSM(self, vnfr_id):
-        token = self.__getOSMToken(vnfr_id)
-        LOG.debug(token)
-        url = self.authmanager.db_host + ':9999/osm/nslcm/v1/vnf_instances'
-        url_2 = url.replace("http","https")
-        status_ns = "curl -s --insecure  -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        status_ns_2 = status_ns +token + "\" "
-        status_ns_3 = status_ns_2 + " " + url_2 + "/" + vnfr_id          
-        LOG.debug(status_ns_3)
-        vnfr = subprocess.check_output([status_ns_3], shell=True)
-        vnfr = subprocess.check_output([status_ns_3], shell=True)
-        LOG.debug(vnfr)
-        return (vnfr)  
-
-    def functionDescriptorOSM(self, vnfd_id):
-        token = self.__getOSMToken(vnfd_id)
-        LOG.debug(token)
-        url = self.authmanager.db_host + ':9999/osm/vnfpkgm/v1/vnf_packages'        
-        url_2 = url.replace("http","https")
-        status_ns = "curl -s --insecure  -H \"Content-type: application/yaml\"  -H \"Accept: application/json\" -H \"Authorization: Bearer "
-        status_ns_2 = status_ns +token + "\" "
-        status_ns_3 = status_ns_2 + " " + url_2 + "/" + vnfd_id          
-        LOG.debug(status_ns_3)
-        vnfd = subprocess.check_output([status_ns_3], shell=True)
-        vnfd = subprocess.check_output([status_ns_3], shell=True)
-        LOG.debug(vnfd)
-        return (vnfd)     
+    
 
 
     def wait_for_instantiation(self,id):
@@ -2746,53 +2490,7 @@ class Adapter:
 
     
 
-    def getUploadedOSMServiceId(self,upload_service):
-        LOG.debug("This is the upload service response:")
-        LOG.debug(upload_service)
-        if upload_service.find("CONFLICT"):
-            service_id = "CONFLICT"
-            return service_id
-        
-        service_id = None
-        json = yaml.load(upload_service) 
-        service_id = json['id']
-        LOG.debug(service_id)
-        return service_id
 
-    def createFunctionsArray(self,package_path):
-        functions_array = None
-        files = []
-        functions_array = []
-        services_array = []
-        for r,d,f in os.walk(package_path):
-            for file in f:
-                    if '.yaml' in file:
-                        files.append(os.path.join(r,file))
-                    if '.yml' in file:
-                        files.append(os.path.join(r,file))                  
-        for f in files:
-            LOG.debug(f)
-            with open(f) as file_in_array:
-                    file = yaml.load(file_in_array)      
-                    #LOG.debug(file)
-                    try:
-                        vnfd = file['vnfd:vnfd-catalog']
-                        #LOG.debug("this file is an osm vnfd")
-                        functions_array.append(f)
-                    except:
-                        try:
-                                nsd = file['nsd:nsd-catalog']
-                                #LOG.debug("this file is an osm nsd")
-                                services_array.append(f)                  
-                        except:
-                                LOG.debug("this files is not an OSM vnfd or nsd")
-        LOG.debug("osm functions list:")
-        for func in functions_array:
-            LOG.debug(func)
-        LOG.debug("osm services list:")
-        for serv in services_array:
-            LOG.debug(serv)                
-        return functions_array
 
     def createServicesArray(self,package_path):
         services_array = None
